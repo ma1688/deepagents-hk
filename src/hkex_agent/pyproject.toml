@@ -1,0 +1,106 @@
+[project]
+name = "hkex-agent"
+version = "0.1.0"
+description = "HKEX Announcement Analysis Assistant based on DeepAgents"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11,<4.0"
+dependencies = [
+  "deepagents==0.2.5",
+  "httpx",
+  "pdfplumber>=0.11.0",
+  "rich>=13.0.0",
+  "prompt-toolkit>=3.0.52",
+  "langchain-openai>=0.1.0",
+  "langchain-anthropic>=0.1.0",
+  "python-dotenv",
+]
+
+[project.scripts]
+hkex = "hkex_agent.cli.main:cli_main"
+
+[tool.uv.sources]
+deepagents = { workspace = true }
+
+[dependency-groups]
+test = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-socket>=0.7.0",
+    "pytest-timeout>=2.3.1",
+    "ruff>=0.9.7",
+]
+
+dev = [
+    "pytest",
+    "pytest-cov",
+    "build",
+    "twine",
+    "pytest-timeout>=2.4.0",
+    "pytest-socket>=0.7.0",
+    "pytest-asyncio>=1.2.0",
+]
+
+lint = [
+    "ruff",
+    "mypy"
+]
+
+[build-system]
+requires = ["setuptools>=73.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hkex_agent*"]
+exclude = ["tests*", "*.tests*", "*.egg-info*"]
+
+[tool.ruff]
+line-length = 100
+exclude = []
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",
+    "ISC001",
+    "PERF203",
+    "SLF001",
+    "PLC0415",
+    "PLR0913",
+    "PLC0414",
+    "C901",
+]
+unfixable = ["B028"]
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+ignore-var-parameters = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "D1",
+    "S101",
+    "S311",
+    "ANN201",
+    "INP001",
+]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+enable_error_code = ["deprecated"]
+disallow_any_generics = false
+warn_return_any = false
+

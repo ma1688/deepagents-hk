@@ -9,7 +9,9 @@ dependencies = [
     "langchain-anthropic>=1.0.0,<2.0.0",
     "langchain>=1.0.2,<2.0.0",
     "langchain-core>=1.0.0,<2.0.0",
-    "wcmatch"
+    "wcmatch",
+    "tavily>=1.1.0",
+    "research-agent>=0.0.2",
 ]
 
 
@@ -106,4 +108,5 @@ warn_return_any = false
 [tool.uv.workspace]
 members = [
     "libs/deepagents-cli",
+    "src/hkex_agent",
 ]
