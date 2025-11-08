@@ -25,7 +25,12 @@ def handle_command(command: str, agent, token_tracker: TokenTracker) -> str | bo
 
         # Clear screen and show fresh UI
         console.clear()
-        console.print(HKEX_AGENT_ASCII, style=f"bold {COLORS['primary']}")
+        # 如果是Text对象（彩虹模式），直接打印；否则应用primary颜色
+        from rich.text import Text
+        if isinstance(HKEX_AGENT_ASCII, Text):
+            console.print(HKEX_AGENT_ASCII)
+        else:
+            console.print(HKEX_AGENT_ASCII, style=f"bold {COLORS['primary']}")
         console.print()
         console.print(
             "... Fresh start! Screen cleared and conversation reset.", style=COLORS["agent"]

@@ -530,7 +530,12 @@ def show_interactive_help():
 def show_help():
     """Show help information."""
     console.print()
-    console.print(HKEX_AGENT_ASCII, style=f"bold {COLORS['primary']}")
+    # 如果是Text对象（彩虹模式），直接打印；否则应用primary颜色
+    from rich.text import Text
+    if isinstance(HKEX_AGENT_ASCII, Text):
+        console.print(HKEX_AGENT_ASCII)
+    else:
+        console.print(HKEX_AGENT_ASCII, style=f"bold {COLORS['primary']}")
     console.print()
 
     console.print("[bold]Usage:[/bold]", style=COLORS["primary"])

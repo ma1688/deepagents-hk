@@ -3,9 +3,11 @@
 import os
 import sys
 from pathlib import Path
+from typing import Union
 
 import dotenv
 from rich.console import Console
+from rich.text import Text
 
 dotenv.load_dotenv()
 
@@ -19,24 +21,52 @@ COLORS = {
     "tool": "#fbbf24",
 }
 
-def get_hkex_banner(font: str = "slant") -> str:
-    """动态生成HKEX Agent横幅.
+# 彩虹渐变色 - 用于ASCII横幅
+RAINBOW_COLORS = [
+    "#ff0000",  # 红
+    "#ff7f00",  # 橙
+    "#ffff00",  # 黄
+    "#00ff00",  # 绿
+    "#00ffff",  # 青
+    "#0000ff",  # 蓝
+    "#8b00ff",  # 紫
+]
+
+def get_hkex_banner(font: str = "slant", rainbow: bool = True) -> Union[Text, str]:
+    """动态生成HKEX Agent横幅，支持彩虹渐变效果.
     
     Args:
         font: 字体风格 (slant, standard, banner, digital等)
             可通过环境变量 HKEX_ASCII_FONT 配置
+        rainbow: 是否启用彩虹渐变效果
+            可通过环境变量 HKEX_RAINBOW=true/false 配置
     
     Returns:
-        生成的ASCII艺术字
+        Rich Text对象(彩虹模式) 或 字符串(普通模式)
     """
-    # 从环境变量读取字体配置
+    # 从环境变量读取配置
     font = os.getenv("HKEX_ASCII_FONT", font)
+    rainbow = os.getenv("HKEX_RAINBOW", str(rainbow)).lower() in ("true", "1", "yes")
     
     try:
         import pyfiglet
-        # 生成单行"HKEX Agent"，更紧凑
-        banner = pyfiglet.figlet_format("HKEX Agent", font=font)
-        return banner
+        # 生成ASCII艺术字
+        banner_text = pyfiglet.figlet_format("HKEX Agent", font=font)
+        
+        if rainbow:
+            # 创建彩虹渐变效果
+            text = Text()
+            lines = banner_text.split("\n")
+            
+            for i, line in enumerate(lines):
+                # 为每行分配颜色（渐变效果）
+                color_idx = i % len(RAINBOW_COLORS)
+                text.append(line + "\n", style=f"bold {RAINBOW_COLORS[color_idx]}")
+            
+            return text
+        else:
+            return banner_text
+            
     except ImportError:
         # 如果pyfiglet未安装，返回简单版本
         return "🏢 HKEX Agent | 港交所公告分析助手\n"
