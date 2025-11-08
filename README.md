@@ -66,6 +66,7 @@ SILICONFLOW_REPORT_TEMPERATURE=0.7    # 报告生成温度
 
 # ========== UI配置 ==========
 HKEX_ASCII_FONT=slant                 # ASCII横幅字体 (571种可选)
+HKEX_RAINBOW=true                     # 彩虹渐变效果 (true/false)
 
 # ========== 其他功能 ==========
 TAVILY_API_KEY=your_tavily_api_key    # 网络搜索功能
@@ -186,6 +187,12 @@ Deep Agents 内置 `write_todos` 工具，使代理能够将复杂任务分解�
 - PDF 文档缓存机制
 - 摘要结果持久化存储
 - 增量更新支持
+
+**🌈 用户体验优化**
+- ASCII艺术字横幅 (571种字体可选)
+- 彩虹渐变效果 (7色循环显示)
+- 居中对齐的启动日志
+- 自定义主题颜色支持
 
 ## 项目结构
 
