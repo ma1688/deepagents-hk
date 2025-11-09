@@ -4,6 +4,10 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
+# Load environment variables early
+import dotenv
+dotenv.load_dotenv()
+
 
 @dataclass
 class SubAgentModelConfig:
