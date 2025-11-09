@@ -135,11 +135,33 @@ async def create_hkex_agent(
             with open(mcp_config_path, "r") as f:
                 mcp_config = json.load(f)
             
-            # 2. Create MCP client (supports SSE type)
-            mcp_client = MultiServerMCPClient(config=mcp_config)
+            # 2. Convert config to connections format
+            connections = {}
+            for server_name, server_config in mcp_config.get("mcpServers", {}).items():
+                if not server_config.get("isActive", True):
+                    continue
+                
+                # Map type to transport
+                transport_type = server_config.get("type", "sse")
+                if transport_type == "sse":
+                    connections[server_name] = {
+                        "url": server_config.get("url") or server_config.get("baseUrl"),
+                        "transport": "sse",
+                    }
+                elif transport_type == "streamable_http":
+                    connections[server_name] = {
+                        "url": server_config.get("url") or server_config.get("baseUrl"),
+                        "transport": "streamable_http",
+                    }
+                elif transport_type == "stdio":
+                    connections[server_name] = {
+                        "command": server_config.get("command"),
+                        "args": server_config.get("args", []),
+                        "transport": "stdio",
+                    }
             
-            # 3. Initialize client
-            await mcp_client.initialize()
+            # 3. Create MCP client
+            mcp_client = MultiServerMCPClient(connections)
             
             # 4. Get MCP tools
             mcp_tools = await mcp_client.get_tools()

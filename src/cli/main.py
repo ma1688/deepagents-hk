@@ -169,6 +169,8 @@ async def main(assistant_id: str, session_state):
 
     # ========== Read MCP configuration ==========
     enable_mcp = os.getenv("ENABLE_MCP", "false").lower() == "true"
+    if enable_mcp:
+        console.print(f"[cyan]🔌 MCP 集成已启用[/cyan]")
     # ============================================
 
     # Create agent with HKEX tools
