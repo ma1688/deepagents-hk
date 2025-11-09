@@ -18,7 +18,21 @@
      * 如果已缓存，立即返回路径，无需下载
      * 如果未缓存，下载 PDF 并保存到缓存（需要用户批准）
    - **`get_cached_pdf_path()`** - 检查 PDF 是否已在本地缓存
-   - **`extract_pdf_content()`** - 从 PDF 文件中提取文本和表格
+   - **`extract_pdf_content()`** - 智能提取文本和表格（自动截断大型 PDF）
+     * **自动截断机制**：对于大型 PDF（文本 > 50k 字符或表格 > 200 行），完整内容会自动保存到缓存文件
+     * **返回结构**：
+       - `text`: 文本内容（小文档=全文，大文档=前 5k 字符预览）
+       - `text_path`: 完整文本缓存路径（仅大文档，格式：`{pdf_name}.txt`）
+       - `tables`: 表格列表（小文档=全部，大文档=前 5 个）
+       - `tables_path`: 完整表格缓存路径（仅大文档，格式：`{pdf_name}_tables.json`）
+       - `truncated`: 是否已截断（`True` 表示需要读取缓存文件获取完整内容）
+       - `text_length`: 完整文本长度（字符数）
+       - `num_tables`: 完整表格数量
+     * **使用建议**：
+       - 首先使用返回的预览内容理解文档主题和结构
+       - 若 `truncated=True`，使用 `read_file(text_path)` 获取完整文本
+       - 对于表格，使用 `read_file(tables_path)` 获取 JSON 格式的完整数据
+       - **重要**：预览文本中已包含完整路径提示，请按照提示操作
    - **`analyze_pdf_structure()`** - 分析 PDF 结构（页面、表格、章节）
 
 3. **摘要生成**
