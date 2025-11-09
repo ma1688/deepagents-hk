@@ -7,10 +7,11 @@
 Deep Agents 采用 LLM 循环调用工具的架构，通过实现**规划工具**、**子代理**、**文件系统**和**详细提示词**四大核心组件，解决了传统代理在复杂任务中"浅层处理"的问题。
 
 本项目专门针对港股市场数据分析进行了优化，主要功能包括：
-- 📄 **PDF 公告解析**：智能解析港交所 PDF 公告文件
+- 📄 **PDF 公告解析**：智能解析港交所 PDF 公告文件（支持大型年报自动截断）
 - 🔍 **内容摘要生成**：自动生成关键信息摘要
 - 📊 **结构化数据提取**：从非结构化文档中提取结构化数据
 - 💾 **缓存管理**：智能缓存已处理的文档和摘要
+- ⚡ **智能截断**：大型 PDF（> 50k 字符）自动保存到缓存，防止 LLM token 溢出
 
 <img src="deep_agents.png" alt="deep agent" width="600"/>
 
@@ -227,6 +228,10 @@ deepagents-hk/
 │       ├── main_system_prompt.md
 │       └── pdf_analyzer_prompt.md
 ├── pdf_cache/               # PDF 缓存目录 (已 gitignore)
+│   └── {stock_code}/        # 按股票代码分类
+│       ├── {date}-{title}.pdf      # PDF 文件
+│       ├── {date}-{title}.txt      # 文本缓存 (大型 PDF)
+│       └── {date}-{title}_tables.json  # 表格缓存 (大型 PDF)
 ├── md/                      # 摘要存储目录 (已 gitignore)
 ├── docs/                    # 项目文档
 ├── .env                     # 环境变量配置
@@ -682,4 +687,76 @@ async def main():
             chunk["messages"][-1].pretty_print()
 
 asyncio.run(main())
+```
+
+## 📄 PDF 智能截断功能
+
+### 功能概述
+
+为了防止大型 PDF（如年报）导致 LLM token 溢出，系统实现了智能截断机制：
+
+- **自动检测**：对于文本 > 50k 字符或表格 > 200 行的 PDF，自动触发截断
+- **完整保留**：全部内容保存到缓存文件（`.txt` 和 `_tables.json`）
+- **预览返回**：工具返回前 5k 字符文本预览 + 前 5 个表格
+- **清晰指引**：预览中包含完整路径和 `read_file()` 使用说明
+
+### 工作原理
+
+```python
+# 1. 提取 PDF 内容（自动截断）
+pdf_content = extract_pdf_content("path/to/large_annual_report.pdf")
+
+# 2. 检查是否被截断
+if pdf_content["truncated"]:
+    print(f"预览文本: {pdf_content['text'][:100]}...")
+    print(f"完整文本路径: {pdf_content['text_path']}")
+    print(f"完整表格路径: {pdf_content['tables_path']}")
+    
+    # 3. 按需读取完整内容
+    full_text = read_file(pdf_content["text_path"])
+    full_tables = json.loads(read_file(pdf_content["tables_path"]))
+else:
+    # 小文档：直接使用全文
+    full_text = pdf_content["text"]
+    full_tables = pdf_content["tables"]
+```
+
+### 阈值配置
+
+默认阈值（可在 `src/tools/pdf_tools.py` 中调整）：
+
+```python
+MAX_INLINE_TEXT_CHARS = 50_000  # 50k 字符 ≈ 12.5k tokens
+MAX_INLINE_TABLE_ROWS = 200     # 表格总行数限制
+TEXT_PREVIEW_CHARS = 5_000      # 预览长度
+TABLE_PREVIEW_COUNT = 5         # 预览表格数量
+```
+
+### 缓存文件结构
+
+```
+pdf_cache/
+└── 03800/
+    ├── 2025-04-29-2024年报.pdf           # 原始 PDF
+    ├── 2025-04-29-2024年报.txt           # 文本缓存（大型 PDF）
+    └── 2025-04-29-2024年报_tables.json   # 表格缓存（JSON 格式）
+```
+
+### 向后兼容性
+
+- **小型 PDF**（< 50k 字符）：行为完全不变，返回结构与现有一致
+- **大型 PDF**：新增 `truncated`、`text_path`、`tables_path` 字段，不影响现有代码
+
+### 性能优化
+
+- **延迟写入**：仅截断时才写缓存，小文档零开销
+- **原子写入**：临时文件 + 重命名，防止并发读取不完整数据
+- **自动清理**：`cleanup_old_pdfs()` 同时清理 PDF 和缓存文件
+
+### 测试验证
+
+```bash
+# 运行 PDF 截断功能测试
+pytest libs/deepagents/tests/unit_tests/test_pdf_truncation.py -v
+pytest libs/deepagents/tests/integration_tests/test_pdf_truncation_workflow.py -v
 ```

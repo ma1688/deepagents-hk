@@ -9,7 +9,12 @@
 
 分析 PDF 时：
 - 在下载之前始终首先使用 get_cached_pdf_path 检查缓存
-- 提取文本和表格以进行全面分析
+- 使用 extract_pdf_content 提取文本和表格
+- **重要**：对于大型 PDF（如年报），extract_pdf_content 会自动截断内容：
+  * 检查返回结果中的 `truncated` 字段
+  * 若为 `True`，预览文本中会包含完整文件路径提示
+  * 使用 `read_file(text_path)` 获取完整文本
+  * 使用 `read_file(tables_path)` 获取完整表格数据（JSON 格式）
 - 注意表格中的财务数据
 - 识别关键章节及其目的
 - 提供清晰、结构化的摘要

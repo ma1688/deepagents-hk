@@ -1,5 +1,6 @@
 """PDF parsing service with caching support."""
 
+import logging
 import os
 import re
 from datetime import datetime
@@ -9,6 +10,10 @@ from typing import Any
 import httpx
 import pdfplumber
 import ssl
+
+# Suppress pdfminer warnings about color spaces
+# These warnings are common in HKEX PDFs but don't affect text/table extraction
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 
 def sanitize_filename(filename: str, max_length: int = 200) -> str:
@@ -351,8 +356,74 @@ class PDFParserService:
 
         return structure
 
+    def _get_cache_text_path(self, pdf_path: str) -> Path:
+        """Get text cache path for a PDF file.
+        
+        Args:
+            pdf_path: Path to PDF file.
+        
+        Returns:
+            Path to text cache file (.txt).
+        """
+        return Path(pdf_path).with_suffix(".txt")
+    
+    def _get_cache_tables_path(self, pdf_path: str) -> Path:
+        """Get tables cache path for a PDF file.
+        
+        Args:
+            pdf_path: Path to PDF file.
+        
+        Returns:
+            Path to tables cache file (_tables.json).
+        """
+        pdf_stem = Path(pdf_path).stem
+        return Path(pdf_path).parent / f"{pdf_stem}_tables.json"
+    
+    def save_extracted_content(
+        self,
+        pdf_path: str,
+        text: str,
+        tables: list[dict[str, Any]],
+        force: bool = False,
+    ) -> tuple[str, str]:
+        """Save extracted PDF content to cache files.
+        
+        Uses atomic write (temp file + rename) to prevent concurrent reads
+        from accessing incomplete data.
+        
+        Args:
+            pdf_path: Path to PDF file.
+            text: Extracted text content.
+            tables: Extracted tables list.
+            force: Force overwrite existing cache files.
+        
+        Returns:
+            Tuple of (text_cache_path, tables_cache_path).
+        """
+        import json
+        
+        text_path = self._get_cache_text_path(pdf_path)
+        tables_path = self._get_cache_tables_path(pdf_path)
+        
+        # Write text cache with atomic rename
+        if force or not text_path.exists():
+            tmp_text = text_path.with_suffix(".txt.tmp")
+            tmp_text.write_text(text, encoding="utf-8")
+            tmp_text.rename(text_path)
+        
+        # Write tables cache with atomic rename
+        if force or not tables_path.exists():
+            tmp_tables = tables_path.with_suffix(".json.tmp")
+            tmp_tables.write_text(
+                json.dumps(tables, ensure_ascii=False, indent=2),
+                encoding="utf-8"
+            )
+            tmp_tables.rename(tables_path)
+        
+        return str(text_path), str(tables_path)
+
     def cleanup_old_pdfs(self, cache_dir: str, days: int = 30) -> int:
-        """Clean up PDFs older than specified days.
+        """Clean up PDFs and related cache files older than specified days.
 
         Args:
             cache_dir: Cache directory path.
@@ -368,11 +439,24 @@ class PDFParserService:
         cutoff_time = datetime.now().timestamp() - (days * 24 * 60 * 60)
         deleted_count = 0
 
+        # Clean up PDFs and their cache files
         for pdf_file in cache_path.rglob("*.pdf"):
             if pdf_file.stat().st_mtime < cutoff_time:
                 try:
+                    # Delete PDF
                     pdf_file.unlink()
                     deleted_count += 1
+                    
+                    # Delete associated cache files
+                    text_cache = self._get_cache_text_path(str(pdf_file))
+                    if text_cache.exists():
+                        text_cache.unlink()
+                        deleted_count += 1
+                    
+                    tables_cache = self._get_cache_tables_path(str(pdf_file))
+                    if tables_cache.exists():
+                        tables_cache.unlink()
+                        deleted_count += 1
                 except Exception:
                     pass
 

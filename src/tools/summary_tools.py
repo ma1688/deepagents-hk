@@ -142,11 +142,23 @@ def generate_summary_markdown(
             # Add PDF content if available
             if pdf_content and pdf_content.get("text"):
                 text = pdf_content.get("text", "")
-                # Truncate if too long (keep first 5000 characters)
-                if len(text) > 5000:
-                    text = text[:5000] + "\n\n... (内容已截断，完整内容请查看 PDF 文件) ..."
-                md_lines.append(f"{text}\n\n")
-                content_added = True
+                
+                # Check if content was truncated by extract_pdf_content
+                if pdf_content.get("truncated") and pdf_content.get("text_path"):
+                    # Large document: use preview + provide full path
+                    md_lines.append(f"{text}\n\n")
+                    md_lines.append(
+                        f"📄 **完整文档**: 由于内容较长（共 {pdf_content.get('text_length', 0):,} 字符），"
+                        f"完整文本已保存至 `{pdf_content.get('text_path')}`\n\n"
+                    )
+                    content_added = True
+                else:
+                    # Small document: use full text (keep existing behavior)
+                    # Truncate if too long (keep first 5000 characters)
+                    if len(text) > 5000:
+                        text = text[:5000] + "\n\n... (内容已截断，完整内容请查看 PDF 文件) ..."
+                    md_lines.append(f"{text}\n\n")
+                    content_added = True
 
             # Add LONG_TEXT if available
             if announcement_data and announcement_data.get("LONG_TEXT"):
@@ -167,23 +179,52 @@ def generate_summary_markdown(
             # Add tables from PDF if available
             if pdf_content and pdf_content.get("tables"):
                 tables = pdf_content.get("tables", [])
-                for i, table_data in enumerate(tables[:5], 1):  # Limit to first 5 tables
-                    page = table_data.get("page", 0)
-                    table = table_data.get("table", [])
-                    if table:
-                        md_lines.append(f"### 表格 {i} (第 {page} 页)\n\n")
-                        # Convert table to Markdown format
+                
+                # Check if tables were truncated
+                if pdf_content.get("truncated") and pdf_content.get("tables_path"):
+                    # Show preview tables
+                    for i, table_data in enumerate(tables, 1):
+                        page = table_data.get("page", 0)
+                        table = table_data.get("table", [])
                         if table:
-                            # Header row
-                            if len(table) > 0:
-                                header = table[0]
-                                md_lines.append("| " + " | ".join(str(cell) if cell else "" for cell in header) + " |\n")
-                                md_lines.append("| " + " | ".join("---" for _ in header) + " |\n")
-                                # Data rows
-                                for row in table[1:]:
-                                    md_lines.append("| " + " | ".join(str(cell) if cell else "" for cell in row) + " |\n")
-                        md_lines.append("\n")
-                        data_added = True
+                            md_lines.append(f"### 表格 {i} (第 {page} 页)\n\n")
+                            # Convert table to Markdown format
+                            if table:
+                                # Header row
+                                if len(table) > 0:
+                                    header = table[0]
+                                    md_lines.append("| " + " | ".join(str(cell) if cell else "" for cell in header) + " |\n")
+                                    md_lines.append("| " + " | ".join("---" for _ in header) + " |\n")
+                                    # Data rows
+                                    for row in table[1:]:
+                                        md_lines.append("| " + " | ".join(str(cell) if cell else "" for cell in row) + " |\n")
+                            md_lines.append("\n")
+                            data_added = True
+                    
+                    # Add note about full tables
+                    md_lines.append(
+                        f"📊 **完整表格数据**: 共 {pdf_content.get('num_tables', 0)} 个表格，"
+                        f"完整数据已保存至 `{pdf_content.get('tables_path')}`\n\n"
+                    )
+                else:
+                    # Show all tables (limit to first 5 for backward compatibility)
+                    for i, table_data in enumerate(tables[:5], 1):
+                        page = table_data.get("page", 0)
+                        table = table_data.get("table", [])
+                        if table:
+                            md_lines.append(f"### 表格 {i} (第 {page} 页)\n\n")
+                            # Convert table to Markdown format
+                            if table:
+                                # Header row
+                                if len(table) > 0:
+                                    header = table[0]
+                                    md_lines.append("| " + " | ".join(str(cell) if cell else "" for cell in header) + " |\n")
+                                    md_lines.append("| " + " | ".join("---" for _ in header) + " |\n")
+                                    # Data rows
+                                    for row in table[1:]:
+                                        md_lines.append("| " + " | ".join(str(cell) if cell else "" for cell in row) + " |\n")
+                            md_lines.append("\n")
+                            data_added = True
 
             if not data_added:
                 md_lines.append("*（暂无表格数据）*\n\n")
