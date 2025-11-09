@@ -1,5 +1,6 @@
 """PDF parsing service with caching support."""
 
+import logging
 import os
 import re
 from datetime import datetime
@@ -9,6 +10,10 @@ from typing import Any
 import httpx
 import pdfplumber
 import ssl
+
+# Suppress pdfminer warnings about color spaces
+# These warnings are common in HKEX PDFs but don't affect text/table extraction
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 
 def sanitize_filename(filename: str, max_length: int = 200) -> str:
