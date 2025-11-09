@@ -129,9 +129,9 @@ def parse_file_mentions(text: str) -> tuple[str, list[Path]]:
 
 
 def get_bottom_toolbar(
-    session_state: SessionState, session_ref: dict
+    session_state: SessionState, session_ref: dict, token_tracker_ref: dict | None = None
 ) -> Callable[[], list[tuple[str, str]]]:
-    """Return toolbar function that shows auto-approve status and BASH MODE."""
+    """Return toolbar function that shows auto-approve status, BASH MODE, and context usage."""
 
     def toolbar() -> list[tuple[str, str]]:
         parts = []
@@ -157,6 +157,24 @@ def get_bottom_toolbar(
             base_class = "class:toolbar-orange"
 
         parts.append((base_class, base_msg))
+        
+        # Show context usage if available
+        if token_tracker_ref:
+            tracker = token_tracker_ref.get("tracker")
+            if tracker and tracker.current_context > 0:
+                usage_percent = (tracker.current_context / tracker.context_limit) * 100 if tracker.context_limit > 0 else 0
+                
+                # Color based on usage
+                if usage_percent < 50:
+                    context_class = "class:toolbar-green"
+                elif usage_percent < 80:
+                    context_class = "class:toolbar-orange"
+                else:
+                    context_class = "class:toolbar-red"
+                
+                parts.append(("", " | "))
+                context_msg = f"Context: {tracker.current_context:,} / {tracker.context_limit:,} ({usage_percent:.1f}%)"
+                parts.append((context_class, context_msg))
 
         # Show exit confirmation hint if active
         hint_until = session_state.exit_hint_until
@@ -173,7 +191,7 @@ def get_bottom_toolbar(
     return toolbar
 
 
-def create_prompt_session(assistant_id: str, session_state: SessionState) -> PromptSession:
+def create_prompt_session(assistant_id: str, session_state: SessionState, token_tracker_ref: dict | None = None) -> PromptSession:
     """Create a configured PromptSession with all features."""
     # Set default editor if not already set
     if "EDITOR" not in os.environ:
@@ -292,6 +310,7 @@ def create_prompt_session(assistant_id: str, session_state: SessionState) -> Pro
             "bottom-toolbar": "noreverse",  # Disable default reverse video
             "toolbar-green": "bg:#10b981 #000000",  # Green for auto-accept ON
             "toolbar-orange": "bg:#f59e0b #000000",  # Orange for manual accept
+            "toolbar-red": "bg:#ef4444 #ffffff",  # Red for high context usage
             "toolbar-exit": "bg:#2563eb #ffffff",  # Blue for exit hint
         }
     )
@@ -311,7 +330,7 @@ def create_prompt_session(assistant_id: str, session_state: SessionState) -> Pro
         mouse_support=False,
         enable_open_in_editor=True,  # Allow Ctrl+X Ctrl+E to open external editor
         bottom_toolbar=get_bottom_toolbar(
-            session_state, session_ref
+            session_state, session_ref, token_tracker_ref
         ),  # Persistent status bar at bottom
         style=toolbar_style,  # Apply toolbar styling
         reserve_space_for_menu=7,  # Reserve space for completion menu to show 5-6 results

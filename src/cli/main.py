@@ -117,10 +117,15 @@ async def simple_cli(agent, assistant_id: str | None, session_state, baseline_to
     )
     console.print()
 
-    # Create prompt session and token tracker
-    session = create_prompt_session(assistant_id, session_state)
+    # Create token tracker
     token_tracker = TokenTracker(model_name=model_name)
     token_tracker.set_baseline(baseline_tokens)
+    
+    # Create token tracker reference for toolbar
+    token_tracker_ref = {"tracker": token_tracker}
+    
+    # Create prompt session with token tracker reference
+    session = create_prompt_session(assistant_id, session_state, token_tracker_ref)
 
     while True:
         try:
