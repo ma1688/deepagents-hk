@@ -210,6 +210,7 @@ MODEL_CONTEXT_LIMITS = {
     "Qwen/Qwen2.5-32B-Instruct": 131072,  # Qwen 32B
     "Qwen/Qwen2.5-72B-Instruct": 131072,  # Qwen 72B
     "internlm/internlm2_5-7b-chat": 32768,  # InternLM 7B
+    "MiniMaxAI/MiniMax-M2":186000,  # MiniMax M2
     
     # OpenAI 模型
     "gpt-5-mini": 128000,  # GPT-5 Mini

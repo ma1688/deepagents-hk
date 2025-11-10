@@ -51,6 +51,10 @@ SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V3.1-Terminus  # 主Agent模型
 SILICONFLOW_PDF_MODEL=Qwen/Qwen2.5-7B-Instruct       # PDF分析子Agent
 SILICONFLOW_REPORT_MODEL=Qwen/Qwen2.5-72B-Instruct   # 报告生成子Agent
 
+# MiniMax (新增支持)
+MINIMAX_API_KEY=your_minimax_api_key
+MINIMAX_MODEL=MiniMaxAI/MiniMax-M2                   # MiniMax M2 模型 (186k 上下文)
+
 # OpenAI
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4o  # 可选，默认gpt-5-mini
@@ -624,6 +628,7 @@ auto-accept ON (CTRL+T to toggle) | Context: 13,494 / 163,840 (8.2%)
 | 模型系列 | 上下文窗口 | 示例模型 |
 |---------|-----------|---------|
 | **DeepSeek** | 163,840 tokens | DeepSeek-V3 (SiliconFlow 实际限制) |
+| **MiniMax** | 186,000 tokens | MiniMax-M2 |
 | **Qwen** | 32k - 131k tokens | Qwen2.5-7B (32k), Qwen2.5-72B (131k) |
 | **OpenAI** | 16k - 128k tokens | GPT-5 (128k), GPT-3.5 (16k) |
 | **Claude** | 200,000 tokens | Claude Sonnet 4.5, Claude Opus 4 |
