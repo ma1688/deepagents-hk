@@ -85,9 +85,15 @@ def get_system_prompt() -> str:
     Returns:
         The system prompt string (without agent.md content)
     """
-    return f"""### Current Working Directory
+    return f"""### File System and Paths
 
 The filesystem backend is currently operating in: `{Path.cwd()}`
+
+**IMPORTANT - Path Handling:**
+- Paths starting with `/` are relative to the working directory (e.g., `/file.txt` → `{Path.cwd()}/file.txt`)
+- Do NOT use absolute system paths like `/Users/...` or `/home/...`
+- Use paths like `/research_project/file.md` to create files in the working directory
+- Special path `/memories/` accesses a different virtual filesystem
 
 ### Memory System Reminder
 
@@ -157,8 +163,10 @@ def create_agent_with_config(model, assistant_id: str, tools: list):
     long_term_backend = FilesystemBackend(root_dir=agent_dir, virtual_mode=True)
 
     # Composite backend: current working directory for default, agent directory for /memories/
+    # Use virtual_mode=True to sandbox paths to cwd (treats /file.txt as cwd/file.txt, not root /file.txt)
     backend = CompositeBackend(
-        default=FilesystemBackend(), routes={"/memories/": long_term_backend}
+        default=FilesystemBackend(root_dir=Path.cwd(), virtual_mode=True),
+        routes={"/memories/": long_term_backend},
     )
 
     # Use the same backend for agent memory middleware

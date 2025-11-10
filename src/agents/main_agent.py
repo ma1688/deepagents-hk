@@ -96,8 +96,9 @@ async def create_hkex_agent(
     )
 
     # Composite backend with routing
+    # Use virtual_mode=True to sandbox paths to cwd (treats /file.txt as cwd/file.txt, not root /file.txt)
     backend = CompositeBackend(
-        default=FilesystemBackend(),  # Default: current working directory
+        default=FilesystemBackend(root_dir=Path.cwd(), virtual_mode=True),
         routes={
             "/pdf_cache/": pdf_cache_backend,
             "/memories/": memories_backend,
