@@ -162,7 +162,11 @@ def get_bottom_toolbar(
         if token_tracker_ref:
             tracker = token_tracker_ref.get("tracker")
             if tracker and tracker.current_context > 0:
-                usage_percent = (tracker.current_context / tracker.context_limit) * 100 if tracker.context_limit > 0 else 0
+                # 计算对话部分的 token（不包括 baseline）
+                conversation_tokens = max(0, tracker.current_context - tracker.baseline_context)
+                total_tokens = tracker.current_context
+                
+                usage_percent = (total_tokens / tracker.context_limit) * 100 if tracker.context_limit > 0 else 0
                 
                 # Color based on usage
                 if usage_percent < 50:
@@ -173,7 +177,15 @@ def get_bottom_toolbar(
                     context_class = "class:toolbar-red"
                 
                 parts.append(("", " | "))
-                context_msg = f"Context: {tracker.current_context:,} / {tracker.context_limit:,} ({usage_percent:.1f}%)"
+                
+                # 显示格式：对话tokens + 总tokens / 限制 (百分比)
+                if conversation_tokens > 0:
+                    # 有对话历史：显示对话tokens + baseline
+                    context_msg = f"Context: {conversation_tokens:,} (+{tracker.baseline_context:,} baseline) / {tracker.context_limit:,} ({usage_percent:.1f}%)"
+                else:
+                    # /clear 后：只显示 baseline
+                    context_msg = f"Context: {tracker.baseline_context:,} (baseline) / {tracker.context_limit:,} ({usage_percent:.1f}%)"
+                
                 parts.append((context_class, context_msg))
 
         # Show exit confirmation hint if active

@@ -86,6 +86,81 @@ MCP_CONFIG_PATH=mcp_config.json       # MCP 配置文件路径（可选）
 
 详细配置说明请参考 `.env.example` 文件。
 
+### API 速率限制处理
+
+系统内置**自动重试机制 + 速率限制器**，无需手动干预即可处理 API 速率限制错误（429 错误）。
+
+#### 核心功能
+
+- ✅ **指数退避重试** - 自动重试失败的请求，延迟时间指数增长（1s → 2s → 4s → 8s → 16s）
+- ✅ **令牌桶速率限制** - 主动控制请求频率，预防超限
+- ✅ **智能错误识别** - 自动识别可重试的错误（429, 5xx, timeout）
+- ✅ **并发控制** - 限制同时进行的请求数量
+- ✅ **默认启用** - 无需配置，开箱即用
+
+#### 环境变量配置（可选）
+
+```bash
+# ========== 速率限制与弹性配置 ==========
+
+# 是否启用弹性功能（默认: true）
+ENABLE_MODEL_RESILIENCE=true
+
+# 每分钟令牌限制 (TPM - Tokens Per Minute)
+# 建议设置为实际 API 配额的 80%
+API_TOKENS_PER_MINUTE=50000
+
+# 突发请求令牌数（令牌桶容量）
+API_BURST_SIZE=10000
+
+# 最大重试次数（默认: 5）
+API_MAX_RETRIES=5
+
+# 基础延迟时间/秒（默认: 1.0）
+API_BASE_DELAY=1.0
+
+# 最大延迟时间/秒（默认: 60.0）
+API_MAX_DELAY=60.0
+
+# 最大并发请求数（默认: 5）
+API_MAX_CONCURRENT=5
+```
+
+#### 不同 API 提供商的推荐配置
+
+```bash
+# --- SiliconFlow 免费套餐 ---
+API_TOKENS_PER_MINUTE=20000
+API_BURST_SIZE=5000
+API_MAX_CONCURRENT=3
+
+# --- SiliconFlow 付费套餐 ---
+API_TOKENS_PER_MINUTE=80000
+API_BURST_SIZE=15000
+API_MAX_CONCURRENT=10
+
+# --- OpenAI GPT-4 标准套餐 ---
+API_TOKENS_PER_MINUTE=90000
+API_BURST_SIZE=15000
+API_MAX_CONCURRENT=10
+```
+
+#### 终端输出示例
+
+当遇到速率限制时，系统会自动处理：
+
+```
+Using SiliconFlow model: deepseek-chat
+  temperature=0.1, max_tokens=8192
+  🛡️  弹性功能已启用: max_retries=5, TPM=50000
+
+⚠️  速率限制: Error code: 429 - TPM limit reached
+🔄 第 1/5 次重试，等待 1.2秒...
+✅ 重试成功
+```
+
+**📖 详细文档**：[API 速率限制处理方案](docs/API_RATE_LIMIT_HANDLING.md)
+
 ### 使用示例
 
 #### 命令行工具

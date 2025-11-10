@@ -224,24 +224,25 @@ class TokenTracker:
         console.print("\n[bold]Token Usage:[/bold]", style=COLORS["primary"])
 
         # Check if we've had any actual API calls yet (current > baseline means we have conversation)
-        has_conversation = self.current_context > self.baseline_context
+        conversation_tokens = max(0, self.current_context - self.baseline_context)
+        has_conversation = conversation_tokens > 0
 
+        # Always show baseline
         if self.baseline_context > 0:
             console.print(
-                f"  Baseline: {self.baseline_context:,} tokens [dim](system + agent.md)[/dim]",
+                f"  Baseline: {self.baseline_context:,} tokens [dim](system + agent.md + tools)[/dim]",
                 style=COLORS["dim"],
             )
 
-            if not has_conversation:
-                # Before first message - warn that tools aren't counted yet
-                console.print(
-                    "  [dim]Note: Tool definitions (~5k tokens) included after first message[/dim]"
-                )
-
+        # Show conversation tokens if any
         if has_conversation:
-            tools_and_conversation = self.current_context - self.baseline_context
             console.print(
-                f"  Tools + conversation: {tools_and_conversation:,} tokens", style=COLORS["dim"]
+                f"  Conversation: {conversation_tokens:,} tokens", style=COLORS["dim"]
+            )
+        else:
+            # After /clear or no conversation yet
+            console.print(
+                "  Conversation: 0 tokens [dim](no messages yet)[/dim]", style=COLORS["dim"]
             )
 
         # Calculate usage percentage

@@ -33,7 +33,10 @@ def handle_command(command: str, agent, token_tracker: TokenTracker) -> str | bo
             console.print(HKEX_AGENT_ASCII, style=f"bold {COLORS['primary']}")
         console.print()
         console.print(
-            "... Fresh start! Screen cleared and conversation reset.", style=COLORS["agent"]
+            "... Fresh start! Conversation reset.", style=COLORS["agent"]
+        )
+        console.print(
+            f"[dim]Context reset to baseline ({token_tracker.baseline_context:,} tokens)[/dim]"
         )
         console.print()
         return True

@@ -202,9 +202,10 @@ class SubAgentModelConfig:
 # 模型上下文窗口限制配置（单位：tokens）
 MODEL_CONTEXT_LIMITS = {
     # SiliconFlow 模型
-    "deepseek-chat": 170000,  # DeepSeek-V3
-    "deepseek-ai/DeepSeek-V3.1-Terminus": 170000,  # DeepSeek-V3.1
-    "deepseek-reasoner": 170000,  # DeepSeek-R1
+    # 注意：SiliconFlow 的实际限制比官方标称值略低
+    "deepseek-chat": 163840,  # DeepSeek-V3 (SiliconFlow 实际限制)
+    "deepseek-ai/DeepSeek-V3.1-Terminus": 163840,  # DeepSeek-V3.1 (SiliconFlow)
+    "deepseek-reasoner": 163840,  # DeepSeek-R1 (SiliconFlow)
     "Qwen/Qwen2.5-7B-Instruct": 32768,  # Qwen 7B
     "Qwen/Qwen2.5-32B-Instruct": 131072,  # Qwen 32B
     "Qwen/Qwen2.5-72B-Instruct": 131072,  # Qwen 72B
