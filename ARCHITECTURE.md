@@ -4,7 +4,7 @@
 graph TB
     %% 用户接口层
     subgraph "用户接口层"
-        CLI["CLI<br/>(命令行接口)<br/>+ 上下文监控"]
+        CLI["CLI<br/>(命令行接口)<br/>+ 上下文监控<br/>+ Show Thinking<br/>+ Tool Outputs Toggle"]
         API["API Client<br/>(Python API)"]
     end
 
@@ -35,10 +35,10 @@ graph TB
     %% 存储层
     subgraph "存储层 (Backends)"
         CompositeBackend["Composite Backend<br/>(路由管理器)"]
-        PDFCache["PDF Cache Backend<br/>(/pdf_cache/)"]
-        Memories["Memories Backend<br/>(/memories/)"]
-        MDBackend["MD Backend<br/>(/md/)"]
-        DefaultFS["Default Filesystem<br/>(工作目录)"]
+        PDFCache["PDF Cache Backend<br/>(/pdf_cache/)<br/>[Virtual Mode]"]
+        Memories["Memories Backend<br/>(/memories/)<br/>[Virtual Mode]"]
+        MDBackend["MD Backend<br/>(/md/)<br/>[Virtual Mode]"]
+        DefaultFS["Default Filesystem<br/>(工作目录)<br/>[Virtual Mode ✓ 沙箱化]"]
     end
 
     %% 中间件层
@@ -137,6 +137,9 @@ graph TB
   - **上下文监控**: 实时显示 Token 使用情况，支持 20+ 模型
   - **智能颜色预警**: 绿色 (< 50%)、橙色 (50-80%)、红色 (> 80%)
   - **底部工具栏**: 显示 `Context: 12,345 / 170,000 (7.3%)`
+  - **Show Thinking** (NEW): `--show-thinking` 标志显示 Agent 推理过程
+  - **Tool Outputs Toggle** (NEW): `Ctrl+O` 切换工具输出显示/隐藏
+  - **Auto-Approve Toggle**: `Ctrl+T` 切换自动批准模式
 - **API Client**: Python API客户端，支持程序化调用
 
 ### 2. 代理层
@@ -160,10 +163,13 @@ graph TB
 
 ### 5. 存储层
 - **Composite Backend**: 复合后端，根据路径前缀路由到不同的存储后端
-- **PDF Cache Backend**: PDF文件缓存存储
-- **Memories Backend**: 代理长期记忆存储
-- **MD Backend**: Markdown摘要文件存储
-- **Default Filesystem**: 默认文件系统后端
+- **PDF Cache Backend**: PDF文件缓存存储 (Virtual Mode)
+- **Memories Backend**: 代理长期记忆存储 (Virtual Mode)
+- **MD Backend**: Markdown摘要文件存储 (Virtual Mode)
+- **Default Filesystem**: 默认文件系统后端 (**NEW: Virtual Mode 沙箱化**)
+  - 所有路径以 `/` 开头的文件操作被沙箱化到当前工作目录
+  - 防止意外写入系统根目录，避免 "Read-only file system" 错误
+  - 路径映射: `/file.txt` → `{cwd}/file.txt`
 
 ### 6. 中间件层
 - **AgentMemoryMiddleware**: 加载和注入代理记忆到系统提示词
@@ -200,8 +206,13 @@ graph TB
 - **智能缓存**: PDF文件自动缓存，避免重复下载
 - **记忆持久化**: 代理记忆保存在文件系统中，支持长期对话
 - **路径路由**: Composite Backend根据路径前缀自动路由到不同存储后端
+- **文件系统沙箱** (NEW): Virtual Mode 沙箱化，防止意外系统文件操作
 - **上下文监控**: 实时显示 Token 使用情况，支持 20+ 模型，智能颜色预警
 - **PDF 智能截断**: 大文件自动缓存到磁盘，避免 Token 超限
 - **MCP 集成**: 支持外部 MCP 服务器，动态扩展工具能力
 - **自动摘要**: 超过上下文阈值时自动压缩历史对话
+- **CLI 增强** (NEW): 
+  - `--show-thinking` 标志显示 Agent 推理过程
+  - `Ctrl+O` 快捷键切换工具输出可见性
+  - 提供更好的调试和理解能力
 
