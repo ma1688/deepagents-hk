@@ -44,6 +44,7 @@ async def create_hkex_agent(
     assistant_id: str = "default",
     tools: list[Any] | None = None,
     enable_mcp: bool = False,
+    checkpointer=None,
 ) -> Any:
     """Create and configure the main HKEX agent.
 
@@ -263,12 +264,14 @@ async def create_hkex_agent(
     )
 
     # Set up checkpointer for state persistence with SQLite
-    # Store checkpoints in agent directory for persistence across sessions
-    # Using SqliteSaver - LangGraph handles async operations internally
-    db_path = agent_dir / "checkpoints.db"
-    
-    # SqliteSaver.from_conn_string() returns a checkpointer directly (not a context manager)
-    # as shown in LangGraph documentation examples
-    agent.checkpointer = SqliteSaver.from_conn_string(str(db_path))
+    # If checkpointer is provided (managed by CLI), use it
+    # Otherwise create a simple one (for API/testing)
+    if checkpointer:
+        agent.checkpointer = checkpointer
+    else:
+        # Fallback: create checkpointer without context manager (for backwards compatibility)
+        # Note: This is not the recommended approach for long-running applications
+        db_path = agent_dir / "checkpoints.db"
+        agent.checkpointer = SqliteSaver.from_conn_string(str(db_path))
 
     return agent

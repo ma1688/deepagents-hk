@@ -207,20 +207,29 @@ async def main(assistant_id: str, session_state):
         generate_summary_markdown,
     ]
 
-    agent = await create_agent_with_config(model, assistant_id, tools, enable_mcp=enable_mcp)
-
-    # Calculate baseline token count for accurate token tracking
-    from src.agents.main_agent import get_system_prompt
-    from .token_utils import calculate_baseline_tokens
-
+    # Set up SqliteSaver checkpointer with proper context manager
+    # This ensures the database connection is managed correctly
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    
     agent_dir = Path.home() / ".hkex-agent" / assistant_id
-    system_prompt = get_system_prompt()
-    baseline_tokens = calculate_baseline_tokens(model, agent_dir, system_prompt)
+    db_path = agent_dir / "checkpoints.db"
+    
+    # Use context manager to properly manage database connection lifecycle
+    with SqliteSaver.from_conn_string(str(db_path)) as checkpointer:
+        # Create agent with checkpointer
+        agent = await create_agent_with_config(model, assistant_id, tools, enable_mcp=enable_mcp, checkpointer=checkpointer)
 
-    try:
-        await simple_cli(agent, assistant_id, session_state, baseline_tokens, model_name)
-    except Exception as e:
-        console.print(f"\n[bold red]❌ Error:[/bold red] {e}\n")
+        # Calculate baseline token count for accurate token tracking
+        from src.agents.main_agent import get_system_prompt
+        from .token_utils import calculate_baseline_tokens
+
+        system_prompt = get_system_prompt()
+        baseline_tokens = calculate_baseline_tokens(model, agent_dir, system_prompt)
+
+        try:
+            await simple_cli(agent, assistant_id, session_state, baseline_tokens, model_name)
+        except Exception as e:
+            console.print(f"\n[bold red]❌ Error:[/bold red] {e}\n")
 
 
 def cli_main():

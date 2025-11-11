@@ -76,7 +76,7 @@ def reset_agent(agent_name: str, source_agent: str = None):
     console.print(f"Location: {agent_dir}\n", style=COLORS["dim"])
 
 
-async def create_agent_with_config(model, assistant_id: str, tools: list, enable_mcp: bool = False):
+async def create_agent_with_config(model, assistant_id: str, tools: list, enable_mcp: bool = False, checkpointer=None):
     """Create and configure an HKEX agent with the specified model and tools.
 
     Args:
@@ -84,6 +84,7 @@ async def create_agent_with_config(model, assistant_id: str, tools: list, enable
         assistant_id: Agent identifier.
         tools: List of additional tools (optional).
         enable_mcp: Enable MCP tools integration (default: False).
+        checkpointer: Optional checkpointer for state persistence (default: None).
 
     Returns:
         Configured HKEX agent.
@@ -93,6 +94,7 @@ async def create_agent_with_config(model, assistant_id: str, tools: list, enable
         assistant_id=assistant_id,
         tools=tools,
         enable_mcp=enable_mcp,
+        checkpointer=checkpointer,
     )
     
     return agent.with_config(config)
