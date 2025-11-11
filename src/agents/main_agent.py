@@ -10,7 +10,7 @@ from deepagents.backends.filesystem import FilesystemBackend
 from deepagents.middleware.resumable_shell import ResumableShellToolMiddleware
 from langchain.agents.middleware import HostExecutionPolicy, InterruptOnConfig
 from langchain_core.language_models import BaseChatModel
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from .subagents import get_all_subagents
 from src.cli.agent_memory import AgentMemoryMiddleware
@@ -262,15 +262,16 @@ async def create_hkex_agent(
         },
     )
 
-    # Set up checkpointer for state persistence with SQLite
+    # Set up checkpointer for state persistence with SQLite (async version)
     # Store checkpoints in agent directory for persistence across sessions
-    # Note: SqliteSaver manages its own connection lifecycle
+    # Using AsyncSqliteSaver because LangGraph agents are async
     db_path = agent_dir / "checkpoints.db"
     
-    # Create connection and keep it alive
-    import sqlite3
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
-    from langgraph.checkpoint.sqlite import SqliteSaver
-    agent.checkpointer = SqliteSaver(conn)
+    # AsyncSqliteSaver.from_conn_string returns a context manager
+    # We need to use it within an async context, but for simplicity
+    # we use the connection-based approach
+    import aiosqlite
+    # Create async checkpointer - it will manage its own connection
+    agent.checkpointer = AsyncSqliteSaver.from_conn_string(str(db_path))
 
     return agent
