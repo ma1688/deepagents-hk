@@ -207,15 +207,15 @@ async def main(assistant_id: str, session_state):
         generate_summary_markdown,
     ]
 
-    # Set up SqliteSaver checkpointer with proper context manager
-    # This ensures the database connection is managed correctly
-    from langgraph.checkpoint.sqlite import SqliteSaver
+    # Set up AsyncSqliteSaver checkpointer with proper async context manager
+    # This ensures the database connection is managed correctly for async operations
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     
     agent_dir = Path.home() / ".hkex-agent" / assistant_id
     db_path = agent_dir / "checkpoints.db"
     
-    # Use context manager to properly manage database connection lifecycle
-    with SqliteSaver.from_conn_string(str(db_path)) as checkpointer:
+    # Use async context manager to properly manage database connection lifecycle
+    async with AsyncSqliteSaver.from_conn_string(str(db_path)) as checkpointer:
         # Create agent with checkpointer
         agent = await create_agent_with_config(model, assistant_id, tools, enable_mcp=enable_mcp, checkpointer=checkpointer)
 

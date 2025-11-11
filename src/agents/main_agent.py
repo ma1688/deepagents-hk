@@ -10,7 +10,7 @@ from deepagents.backends.filesystem import FilesystemBackend
 from deepagents.middleware.resumable_shell import ResumableShellToolMiddleware
 from langchain.agents.middleware import HostExecutionPolicy, InterruptOnConfig
 from langchain_core.language_models import BaseChatModel
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from .subagents import get_all_subagents
 from src.cli.agent_memory import AgentMemoryMiddleware
@@ -269,9 +269,9 @@ async def create_hkex_agent(
     if checkpointer:
         agent.checkpointer = checkpointer
     else:
-        # Fallback: create checkpointer without context manager (for backwards compatibility)
+        # Fallback: create async checkpointer (for backwards compatibility)
         # Note: This is not the recommended approach for long-running applications
         db_path = agent_dir / "checkpoints.db"
-        agent.checkpointer = SqliteSaver.from_conn_string(str(db_path))
+        agent.checkpointer = AsyncSqliteSaver.from_conn_string(str(db_path))
 
     return agent
