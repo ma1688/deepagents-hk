@@ -10,7 +10,7 @@ from deepagents.backends.filesystem import FilesystemBackend
 from deepagents.middleware.resumable_shell import ResumableShellToolMiddleware
 from langchain.agents.middleware import HostExecutionPolicy, InterruptOnConfig
 from langchain_core.language_models import BaseChatModel
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from .subagents import get_all_subagents
 from src.cli.agent_memory import AgentMemoryMiddleware
@@ -265,7 +265,7 @@ async def create_hkex_agent(
     # Set up checkpointer for state persistence with SQLite
     # Store checkpoints in agent directory for persistence across sessions
     db_path = agent_dir / "checkpoints.db"
-    checkpointer = AsyncSqliteSaver.from_conn_string(str(db_path))
+    checkpointer = SqliteSaver.from_conn_string(f"sqlite:///{db_path}")
     agent.checkpointer = checkpointer
 
     return agent

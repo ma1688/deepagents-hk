@@ -58,7 +58,9 @@ def handle_command(command: str, agent, token_tracker: TokenTracker) -> str | bo
         return True
 
     if cmd == "history":
-        show_conversation_history(agent)
+        # Note: This is a simple synchronous implementation
+        # Full async implementation would require refactoring the command handler
+        show_conversation_history_sync(agent)
         return True
 
     console.print()
@@ -70,8 +72,8 @@ def handle_command(command: str, agent, token_tracker: TokenTracker) -> str | bo
     return False
 
 
-async def show_conversation_history(agent):
-    """Display conversation history from checkpointer."""
+def show_conversation_history_sync(agent):
+    """Display conversation history from checkpointer (synchronous version)."""
     console.print()
     console.print("[bold cyan]📝 Conversation History[/bold cyan]")
     console.print()
