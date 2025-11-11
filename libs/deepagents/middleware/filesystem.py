@@ -147,14 +147,23 @@ Usage:
 READ_FILE_TOOL_DESCRIPTION = """Reads a file from the filesystem. You can access any file directly by using this tool.
 Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.
 
+Parameters:
+- file_path (str): Absolute file path (NOT relative path)
+- offset (int): Starting line number, default 0
+- limit (int): Maximum lines to read, default 500
+
 Usage:
-- The file_path parameter must be an absolute path, not a relative path
 - By default, it reads up to 500 lines starting from the beginning of the file
 - **IMPORTANT for large files and codebase exploration**: Use pagination with offset and limit parameters to avoid context overflow
   - First scan: read_file(path, limit=100) to see file structure
   - Read more sections: read_file(path, offset=100, limit=200) for next 200 lines
   - Only omit limit (read full file) when necessary for editing
 - Specify offset and limit: read_file(path, offset=0, limit=100) reads first 100 lines
+
+**CRITICAL Parameter Format**:
+  ✅ CORRECT: {"file_path": "/path/file", "offset": 0, "limit": 200}
+  ❌ WRONG:   {"file_path": "/path/file", "offset": "0, limit=200"}
+  Each parameter must be separate, not combined into a string!
 - Any lines longer than 2000 characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
 - You have the capability to call multiple tools in a single response. It is always better to speculatively read multiple files as a batch that are potentially useful.
