@@ -36,7 +36,7 @@
 uv sync
 
 # 或使用 pip
-pip install -r requirements.txt
+pip install -e .
 
 # 或使用 poetry
 poetry install
