@@ -243,6 +243,20 @@ def get_model_context_limit(model_name: str) -> int:
     return MODEL_CONTEXT_LIMITS.get(model_name, MODEL_CONTEXT_LIMITS["default"])
 
 
+# Agent目录配置
+AGENT_DIR_NAME = ".hkex-agent"  # Agent根目录名称，可通过环境变量 HKEX_AGENT_DIR 覆盖
+
+def get_agent_dir_name() -> str:
+    """获取Agent目录名称.
+    
+    优先从环境变量 HKEX_AGENT_DIR 读取，默认为 .hkex-agent
+    
+    Returns:
+        Agent目录名称
+    """
+    return os.getenv("HKEX_AGENT_DIR", AGENT_DIR_NAME)
+
+
 # 全局配置实例
 agent_model_config = SubAgentModelConfig()
 

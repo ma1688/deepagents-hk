@@ -62,15 +62,17 @@ def get_memory_system_prompt(agent_id: str = "hkex-agent") -> str:
     # Import from agent_memory middleware
     from .agent_memory import LONGTERM_MEMORY_SYSTEM_PROMPT
     from .project_utils import find_project_root
+    from src.config.agent_config import get_agent_dir_name
 
     # Calculate paths for formatting
-    agent_dir_absolute = str(Path.home() / ".hkex-agent" / agent_id)
-    agent_dir_display = f"~/.hkex-agent/{agent_id}"
+    agent_dir_name = get_agent_dir_name()
+    agent_dir_absolute = str(Path.home() / agent_dir_name / agent_id)
+    agent_dir_display = f"~/{agent_dir_name}/{agent_id}"
     
     # Check for project root
     project_root = find_project_root()
     if project_root:
-        project_hkex_dir = str(project_root / ".hkex-agent")
+        project_hkex_dir = str(project_root / agent_dir_name)
         project_memory_info = f"`{project_hkex_dir}`"
     else:
         project_hkex_dir = "N/A"
