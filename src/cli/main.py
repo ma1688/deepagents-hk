@@ -75,8 +75,8 @@ def parse_args():
     # Default interactive mode
     parser.add_argument(
         "--agent",
-        default="default",
-        help="Agent identifier for separate memory stores (default: default).",
+        default="hkex-agent",
+        help="Agent identifier for separate memory stores (default: hkex-agent).",
     )
     parser.add_argument(
         "--auto-approve",
