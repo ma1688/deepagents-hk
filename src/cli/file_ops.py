@@ -116,7 +116,9 @@ def resolve_physical_path(path_str: str | None, assistant_id: str | None) -> Pat
         return None
     try:
         if assistant_id and path_str.startswith("/memories/"):
-            agent_dir = Path.home() / ".hkex-agent" / assistant_id
+            from src.config.agent_config import get_agent_dir_name
+            agent_dir_name = get_agent_dir_name()
+            agent_dir = Path.home() / agent_dir_name / assistant_id
             suffix = path_str.removeprefix("/memories/").lstrip("/")
             return (agent_dir / suffix).resolve()
         path = Path(path_str)

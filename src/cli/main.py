@@ -75,8 +75,8 @@ def parse_args():
     # Default interactive mode
     parser.add_argument(
         "--agent",
-        default="default",
-        help="Agent identifier for separate memory stores (default: default).",
+        default="hkex-agent",
+        help="Agent identifier for separate memory stores (default: hkex-agent).",
     )
     parser.add_argument(
         "--auto-approve",
@@ -151,7 +151,7 @@ async def simple_cli(agent, assistant_id: str | None, session_state, baseline_to
 
         # Check for slash commands first
         if user_input.startswith("/"):
-            result = handle_command(user_input, agent, token_tracker)
+            result = handle_command(user_input, agent, token_tracker, assistant_id)
             if result == "exit":
                 console.print("\nGoodbye!", style=COLORS["primary"])
                 break
@@ -212,8 +212,10 @@ async def main(assistant_id: str, session_state):
     # Calculate baseline token count for accurate token tracking
     from src.agents.main_agent import get_system_prompt
     from .token_utils import calculate_baseline_tokens
+    from src.config.agent_config import get_agent_dir_name
 
-    agent_dir = Path.home() / ".hkex-agent" / assistant_id
+    agent_dir_name = get_agent_dir_name()
+    agent_dir = Path.home() / agent_dir_name / assistant_id
     system_prompt = get_system_prompt()
     baseline_tokens = calculate_baseline_tokens(model, agent_dir, system_prompt)
 

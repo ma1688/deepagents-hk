@@ -9,7 +9,7 @@ from .config import COLORS, HKEX_AGENT_ASCII, console
 from .ui import TokenTracker, show_interactive_help
 
 
-def handle_command(command: str, agent, token_tracker: TokenTracker) -> str | bool:
+def handle_command(command: str, agent, token_tracker: TokenTracker, assistant_id: str = "hkex-agent") -> str | bool:
     """Handle slash commands. Returns 'exit' to exit, True if handled, False to pass to agent."""
     cmd = command.lower().strip().lstrip("/")
 
@@ -47,6 +47,46 @@ def handle_command(command: str, agent, token_tracker: TokenTracker) -> str | bo
 
     if cmd == "tokens":
         token_tracker.display_session()
+        return True
+
+    if cmd.startswith("skills"):
+        # Handle skills subcommands
+        from src.cli.skills import execute_skills_command_interactive
+        parts = cmd.split(maxsplit=1)
+        subcommand = parts[1] if len(parts) > 1 else "list"
+        execute_skills_command_interactive(subcommand, assistant_id)
+        return True
+
+    if cmd == "memory":
+        # Show memory paths
+        from pathlib import Path
+        from src.config.agent_config import get_agent_dir_name
+        from src.cli.project_utils import find_project_root
+        
+        agent_dir_name = get_agent_dir_name()
+        user_memory = Path.home() / agent_dir_name / assistant_id / "memories" / "agent.md"
+        project_root = find_project_root()
+        
+        console.print()
+        console.print("[bold]Memory Configuration[/bold]", style=COLORS["primary"])
+        console.print()
+        console.print(f"[bold]User Memory:[/bold] {user_memory}", style=COLORS["dim"])
+        if user_memory.exists():
+            console.print("  ✓ File exists", style="green")
+        else:
+            console.print("  ○ File not created yet", style="yellow")
+        
+        console.print()
+        if project_root:
+            project_memory = project_root / agent_dir_name / "agent.md"
+            console.print(f"[bold]Project Memory:[/bold] {project_memory}", style=COLORS["dim"])
+            if project_memory.exists():
+                console.print("  ✓ File exists", style="green")
+            else:
+                console.print("  ○ File not created yet", style="yellow")
+        else:
+            console.print("[bold]Project Memory:[/bold] Not in a project", style=COLORS["dim"])
+        console.print()
         return True
 
     console.print()

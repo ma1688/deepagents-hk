@@ -4,16 +4,16 @@ import os
 from pathlib import Path
 from typing import Any
 
-from deepagents import create_deep_agent
-from deepagents.backends import CompositeBackend
-from deepagents.backends.filesystem import FilesystemBackend
-from deepagents.middleware.resumable_shell import ResumableShellToolMiddleware
 from langchain.agents.middleware import HostExecutionPolicy, InterruptOnConfig
 from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import InMemorySaver
 
-from .subagents import get_all_subagents
+from deepagents import create_deep_agent
+from deepagents.backends import CompositeBackend
+from deepagents.backends.filesystem import FilesystemBackend
+from deepagents.middleware.resumable_shell import ResumableShellToolMiddleware
 from src.cli.agent_memory import AgentMemoryMiddleware
+from src.prompts.prompts import get_main_system_prompt
 from src.tools.hkex_tools import (
     get_announcement_categories,
     get_latest_hkex_announcements,
@@ -26,8 +26,8 @@ from src.tools.pdf_tools import (
     extract_pdf_content,
     get_cached_pdf_path,
 )
-from src.prompts.prompts import get_main_system_prompt
 from src.tools.summary_tools import generate_summary_markdown
+from .subagents import get_all_subagents
 
 
 def get_system_prompt() -> str:
@@ -40,10 +40,11 @@ def get_system_prompt() -> str:
 
 
 async def create_hkex_agent(
-    model: BaseChatModel,
-    assistant_id: str = "default",
-    tools: list[Any] | None = None,
-    enable_mcp: bool = False,
+        model: BaseChatModel,
+        assistant_id: str = "default",
+        tools: list[Any] | None = None,
+        enable_mcp: bool = False,
+        middlewares: list[Any] | None = None,
 ) -> Any:
     """Create and configure the main HKEX agent.
 
@@ -52,19 +53,22 @@ async def create_hkex_agent(
         assistant_id: Agent identifier (default: "default").
         tools: Additional tools to include (optional).
         enable_mcp: Enable MCP tools integration (default: False).
+        middlewares: Additional middlewares to include (e.g., SkillsMiddleware).
 
     Returns:
         Configured HKEX agent instance.
     """
     # Set up agent directory structure
-    agent_dir = Path.home() / ".hkex-agent" / assistant_id
+    from src.config.agent_config import get_agent_dir_name
+    agent_dir_name = get_agent_dir_name()
+    agent_dir = Path.home() / agent_dir_name / assistant_id
     agent_dir.mkdir(parents=True, exist_ok=True)
     (agent_dir / "memories").mkdir(exist_ok=True)
     # PDF cache is now in project root, not in agent_dir
 
     # Create agent.md if it doesn't exist
     from src.prompts.prompts import get_default_agent_md
-    
+
     agent_md = agent_dir / "memories" / "agent.md"
     if not agent_md.exists():
         agent_md.write_text(get_default_agent_md())
@@ -108,9 +112,13 @@ async def create_hkex_agent(
 
     # Set up middleware
     agent_middleware = [
-        AgentMemoryMiddleware(backend=memories_backend, memory_path="/memories/"),
+        AgentMemoryMiddleware(assistant_id=assistant_id),
         shell_middleware,
     ]
+    
+    # Add custom middlewares if provided (e.g., SkillsMiddleware)
+    if middlewares:
+        agent_middleware.extend(middlewares)
 
     # Get all HKEX tools
     hkex_tools = [
@@ -130,18 +138,18 @@ async def create_hkex_agent(
         try:
             from langchain_mcp_adapters.client import MultiServerMCPClient
             import json
-            
+
             # 1. Read MCP configuration
             mcp_config_path = os.getenv("MCP_CONFIG_PATH", "mcp_config.json")
             with open(mcp_config_path, "r") as f:
                 mcp_config = json.load(f)
-            
+
             # 2. Convert config to connections format
             connections = {}
             for server_name, server_config in mcp_config.get("mcpServers", {}).items():
                 if not server_config.get("isActive", True):
                     continue
-                
+
                 # Map type to transport
                 transport_type = server_config.get("type", "sse")
                 if transport_type == "sse":
@@ -160,20 +168,20 @@ async def create_hkex_agent(
                         "args": server_config.get("args", []),
                         "transport": "stdio",
                     }
-            
+
             # 3. Create MCP client
             mcp_client = MultiServerMCPClient(connections)
-            
+
             # 4. Get MCP tools
             mcp_tools = await mcp_client.get_tools()
-            
+
             # 5. Add to tool list
             hkex_tools.extend(mcp_tools)
-            
+
             # 6. Print tool list (simplified)
             tool_names = [tool.name for tool in mcp_tools]
             print(f"✅ 已加载 {len(mcp_tools)} 个 MCP 工具: {', '.join(tool_names)}")
-                
+
         except Exception as e:
             print(f"⚠️  MCP 工具加载失败: {e}")
             import traceback

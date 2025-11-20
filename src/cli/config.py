@@ -82,6 +82,8 @@ HKEX_AGENT_ASCII = get_hkex_banner()
 COMMANDS = {
     "clear": "Clear screen and reset conversation",
     "help": "Show help information",
+    "skills": "Manage and view available skills (list/show/search)",
+    "memory": "View memory configuration paths",
     "tokens": "Show token usage for current session",
     "quit": "Exit the CLI",
     "exit": "Exit the CLI",

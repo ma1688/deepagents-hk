@@ -266,7 +266,9 @@ class HKEXAgentClient:
         Returns:
             Path to PDF cache directory.
         """
-        return Path.home() / ".hkex-agent" / self.agent_id / "pdf_cache"
+        from src.config.agent_config import get_agent_dir_name
+        agent_dir_name = get_agent_dir_name()
+        return Path.home() / agent_dir_name / self.agent_id / "pdf_cache"
 
     def clear_cache(self) -> int:
         """Clear all cached PDFs.

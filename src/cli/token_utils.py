@@ -36,7 +36,9 @@ def calculate_baseline_tokens(model, agent_dir: Path, system_prompt: str) -> int
     memory_section = f"<agent_memory>\n{agent_memory}\n</agent_memory>"
 
     # Get the long-term memory system prompt
-    memory_system_prompt = get_memory_system_prompt()
+    # Extract agent_id from agent_dir path
+    agent_id = agent_dir.name
+    memory_system_prompt = get_memory_system_prompt(agent_id)
 
     # Combine all parts in the same order as the middleware
     full_system_prompt = memory_section + "\n\n" + system_prompt + "\n\n" + memory_system_prompt
@@ -55,9 +57,30 @@ def calculate_baseline_tokens(model, agent_dir: Path, system_prompt: str) -> int
         return 0
 
 
-def get_memory_system_prompt() -> str:
+def get_memory_system_prompt(agent_id: str = "hkex-agent") -> str:
     """Get the long-term memory system prompt text."""
     # Import from agent_memory middleware
     from .agent_memory import LONGTERM_MEMORY_SYSTEM_PROMPT
+    from .project_utils import find_project_root
+    from src.config.agent_config import get_agent_dir_name
 
-    return LONGTERM_MEMORY_SYSTEM_PROMPT.format(memory_path="/memories/")
+    # Calculate paths for formatting
+    agent_dir_name = get_agent_dir_name()
+    agent_dir_absolute = str(Path.home() / agent_dir_name / agent_id)
+    agent_dir_display = f"~/{agent_dir_name}/{agent_id}"
+    
+    # Check for project root
+    project_root = find_project_root()
+    if project_root:
+        project_hkex_dir = str(project_root / agent_dir_name)
+        project_memory_info = f"`{project_hkex_dir}`"
+    else:
+        project_hkex_dir = "N/A"
+        project_memory_info = "Not in a project (no project-level memory)"
+
+    return LONGTERM_MEMORY_SYSTEM_PROMPT.format(
+        agent_dir_absolute=agent_dir_absolute,
+        agent_dir_display=agent_dir_display,
+        project_memory_info=project_memory_info,
+        project_hkex_dir=project_hkex_dir,
+    )
