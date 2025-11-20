@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **deepagents-hk** 是基于 Deep Agents 框架开发的港股智能分析系统，专门处理港交所公告、PDF 文档解析和智能摘要生成。
 
-**上游同步记录** (2025-11-11):
-- ✅ 移植子代理错误处理优化 (766c41c)
-- ✅ 移植 fetch_url 网页抓取工具 (e63487e)
+**上游同步记录**:
+- 2025-11-20: ✅ Skills系统和双范围内存 (4c4a552)
+- 2025-11-11: ✅ 移植子代理错误处理优化 (766c41c)
+- 2025-11-11: ✅ 移植 fetch_url 网页抓取工具 (e63487e)
 - ⏭️ HITL并发修复暂不需要（无并发场景）
 
 ## 核心架构
@@ -82,6 +83,19 @@ MCP_CONFIG_PATH=mcp_config.json
 - 不同任务使用不同模型优化成本
 - 实时上下文窗口监控，颜色预警系统
 
+### Skills系统 (新增 2025-11-20)
+- **可重用技能库**: 港股分析专用技能（公告、CCASS、财务指标）
+- **渐进式披露**: Agent先看技能列表，需要时读取详情
+- **用户级和项目级**: 支持全局和项目特定技能
+- **YAML frontmatter**: 标准化技能元数据
+- **示例技能**: `examples/skills/` 包含3个HKEX专用技能
+
+### 双范围内存 (新增 2025-11-20)
+- **用户级内存**: `~/.hkex-agent/{agent}/memories/agent.md` - 个性、风格、通用行为
+- **项目级内存**: `[project]/.hkex-agent/agent.md` - 项目特定指令和约定
+- **优先级**: 项目内存优先于用户内存
+- **自动检测**: 根据项目根目录自动加载项目内存
+
 ### MCP集成
 - 支持外部MCP服务器扩展功能
 - CCASS数据分析集成示例
@@ -94,6 +108,12 @@ MCP_CONFIG_PATH=mcp_config.json
 src/
 ├── agents/          # 代理核心逻辑
 ├── cli/             # 命令行工具 (入口: main.py)
+│   ├── skills/      # Skills系统 (新增)
+│   │   ├── load.py       # 技能加载器
+│   │   ├── middleware.py # 技能中间件
+│   │   └── commands.py   # 技能CLI命令
+│   ├── project_utils.py  # 项目检测工具 (新增)
+│   └── agent_memory.py   # 双范围内存 (更新)
 ├── config/          # 配置模块
 ├── services/        # 业务服务
 ├── tools/           # 工具集合
@@ -104,6 +124,95 @@ src/
 - **统一配置**: `pyproject.toml` 管理所有依赖
 - **入口点**: `hkex = "src.cli.main:cli_main"`
 - **包结构**: `src` 作为完整Python包，使用 `from src.xxx` 导入
+
+## Skills系统使用
+
+### 技能目录结构
+```
+~/.hkex-agent/{agent}/
+├── memories/
+│   └── agent.md              # 用户级内存
+├── pdf_cache/                # PDF缓存（保持现有）
+└── skills/                   # ✨ 技能目录 (新增)
+    ├── hkex-announcement/
+    │   ├── SKILL.md          # 技能文档
+    │   └── helpers.py        # 辅助脚本（可选）
+    ├── ccass-tracking/
+    │   └── SKILL.md
+    └── financial-metrics/
+        └── SKILL.md
+
+[project]/.hkex-agent/
+└── agent.md                  # ✨ 项目级内存 (新增)
+```
+
+### 创建自定义技能
+
+**1. 复制示例技能**:
+```bash
+# 从examples复制到用户目录
+cp -r examples/skills/hkex-announcement ~/.hkex-agent/hkex-agent/skills/
+cp -r examples/skills/ccass-tracking ~/.hkex-agent/hkex-agent/skills/
+cp -r examples/skills/financial-metrics ~/.hkex-agent/hkex-agent/skills/
+```
+
+**2. 创建新技能**:
+```bash
+mkdir -p ~/.hkex-agent/hkex-agent/skills/my-skill
+cat > ~/.hkex-agent/hkex-agent/skills/my-skill/SKILL.md << 'EOF'
+---
+name: my-skill
+description: Brief description of what this skill does
+---
+
+# My Skill
+
+## When to Use
+...
+
+## Process
+...
+EOF
+```
+
+**3. Agent自动识别**:
+- Agent启动时自动加载技能列表
+- 系统提示词包含所有可用技能
+- Agent根据任务选择合适技能
+
+### 双范围内存使用
+
+**用户级内存** (`~/.hkex-agent/{agent}/memories/agent.md`):
+```markdown
+你是港股分析专家。
+
+## 风格
+- 简洁直接，避免冗长
+- 优先使用表格展示数据
+- 始终使用繁体中文处理港交所文档
+
+## 偏好
+- 配售分析重点关注折让率和认购人
+- CCASS变化>5%视为重大变动
+- 财务指标对比至少3个季度
+```
+
+**项目级内存** (`[project]/.hkex-agent/agent.md`):
+```markdown
+# 本项目: 港股配售追踪系统
+
+## 项目约定
+- 所有分析保存到 `analysis/` 目录
+- 使用 Markdown 格式输出
+- 图表使用 Mermaid 语法
+
+## 优先使用技能
+- hkex-announcement-analysis（配售公告）
+
+## 数据源
+- 优先使用本地PDF缓存
+- CCASS数据使用MCP服务器
+```
 
 ## 缓存机制
 
