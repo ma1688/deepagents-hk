@@ -212,8 +212,10 @@ async def main(assistant_id: str, session_state):
     # Calculate baseline token count for accurate token tracking
     from src.agents.main_agent import get_system_prompt
     from .token_utils import calculate_baseline_tokens
+    from src.config.agent_config import get_agent_dir_name
 
-    agent_dir = Path.home() / ".hkex-agent" / assistant_id
+    agent_dir_name = get_agent_dir_name()
+    agent_dir = Path.home() / agent_dir_name / assistant_id
     system_prompt = get_system_prompt()
     baseline_tokens = calculate_baseline_tokens(model, agent_dir, system_prompt)
 

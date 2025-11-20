@@ -110,8 +110,10 @@ class SkillsMiddleware(AgentMiddleware):
         from src.cli.skills import SkillsMiddleware
 
         # Set up skills directory (per-agent)
-        agent_dir = Path.home() / ".hkex-agent" / "agent"
-        skills_dir = agent_dir / "skills"
+            from src.config.agent_config import get_agent_dir_name
+            agent_dir_name = get_agent_dir_name()
+            agent_dir = Path.home() / agent_dir_name / "agent"
+            skills_dir = agent_dir / "skills"
 
         # Create middleware
         middleware = SkillsMiddleware(skills_dir=skills_dir, assistant_id="agent")

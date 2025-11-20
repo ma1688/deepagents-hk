@@ -59,7 +59,9 @@ async def create_hkex_agent(
         Configured HKEX agent instance.
     """
     # Set up agent directory structure
-    agent_dir = Path.home() / ".hkex-agent" / assistant_id
+    from src.config.agent_config import get_agent_dir_name
+    agent_dir_name = get_agent_dir_name()
+    agent_dir = Path.home() / agent_dir_name / assistant_id
     agent_dir.mkdir(parents=True, exist_ok=True)
     (agent_dir / "memories").mkdir(exist_ok=True)
     # PDF cache is now in project root, not in agent_dir

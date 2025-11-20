@@ -196,14 +196,17 @@ class AgentMemoryMiddleware(AgentMiddleware):
         self.assistant_id = assistant_id
 
         # User paths
-        self.agent_dir = Path.home() / ".hkex-agent" / assistant_id
+        from src.config.agent_config import get_agent_dir_name
+        agent_dir_name = get_agent_dir_name()
+        self.agent_dir = Path.home() / agent_dir_name / assistant_id
         # Store both display path (with ~) and absolute path for file operations
-        self.agent_dir_display = f"~/.hkex-agent/{assistant_id}"
+        self.agent_dir_display = f"~/{agent_dir_name}/{assistant_id}"
         self.agent_dir_absolute = str(self.agent_dir)
         self.user_memory_file = self.agent_dir / "memories" / "agent.md"
 
         # Project paths (detected dynamically)
         self.project_root = find_project_root()
+        self.project_agent_dir_name = agent_dir_name  # Store for later use
 
         self.system_prompt_template = system_prompt_template or DEFAULT_MEMORY_SNIPPET
 
@@ -237,7 +240,7 @@ class AgentMemoryMiddleware(AgentMiddleware):
         # Load project memory
         project_memory = ""
         if self.project_root:
-            project_hkex_dir = self.project_root / ".hkex-agent"
+            project_hkex_dir = self.project_root / self.project_agent_dir_name
             project_agent_file = project_hkex_dir / "agent.md"
             if project_agent_file.exists():
                 try:

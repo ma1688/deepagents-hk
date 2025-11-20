@@ -93,9 +93,11 @@ async def create_agent_with_config(model, assistant_id: str, tools: list, enable
     if enable_skills:
         from pathlib import Path
         from src.cli.skills.middleware import SkillsMiddleware
+        from src.config.agent_config import get_agent_dir_name
         
         # Setup Skills directory
-        agent_dir = Path.home() / ".hkex-agent" / assistant_id
+        agent_dir_name = get_agent_dir_name()
+        agent_dir = Path.home() / agent_dir_name / assistant_id
         skills_dir = agent_dir / "skills"
         skills_dir.mkdir(parents=True, exist_ok=True)
         
