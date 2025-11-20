@@ -352,3 +352,121 @@ __all__ = [
     "execute_skills_command",
     "setup_skills_parser",
 ]
+
+
+def execute_skills_command_interactive(subcommand: str, assistant_id: str = "hkex-agent") -> None:
+    """Execute skills commands in interactive CLI mode.
+    
+    Args:
+        subcommand: Command like 'list', 'show <name>', 'search <query>'
+        assistant_id: Agent identifier for skills directory
+    """
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.table import Table
+    from src.config.agent_config import get_agent_dir_name
+    
+    agent_dir_name = get_agent_dir_name()
+    skills_dir = Path.home() / agent_dir_name / assistant_id / "skills"
+    
+    parts = subcommand.split(maxsplit=1)
+    cmd = parts[0]
+    arg = parts[1] if len(parts) > 1 else None
+    
+    if cmd == "list" or cmd == "":
+        skills = list_skills(skills_dir)
+        if not skills:
+            console.print()
+            console.print(f"[yellow]No skills found in {skills_dir}[/yellow]")
+            console.print("[dim]Copy examples: cp -r examples/skills/* {skills_dir}/[/dim]")
+            console.print()
+            return
+        
+        console.print()
+        console.print("[bold]Available Skills:[/bold]", style="cyan")
+        console.print()
+        
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Name", style="bold cyan")
+        table.add_column("Description")
+        
+        for skill in skills:
+            table.add_row(skill["name"], skill["description"])
+        
+        console.print(table)
+        console.print()
+        console.print(f"[dim]Skills directory: {skills_dir}[/dim]")
+        console.print("[dim]View details: /skills show <name>[/dim]")
+        console.print()
+    
+    elif cmd == "show":
+        if not arg:
+            console.print()
+            console.print("[yellow]Usage: /skills show <skill-name>[/yellow]")
+            console.print()
+            return
+        
+        skills = list_skills(skills_dir)
+        skill = next((s for s in skills if s["name"] == arg), None)
+        
+        if not skill:
+            console.print()
+            console.print(f"[yellow]Skill '{arg}' not found[/yellow]")
+            console.print("[dim]List available skills: /skills list[/dim]")
+            console.print()
+            return
+        
+        skill_md = Path(skill["path"])
+        if skill_md.exists():
+            content = skill_md.read_text()
+            console.print()
+            console.print(Panel(
+                Syntax(content, "markdown", theme="monokai", word_wrap=True),
+                title=f"[bold]{skill['name']}[/bold]",
+                border_style="cyan"
+            ))
+            console.print()
+        else:
+            console.print()
+            console.print(f"[red]Error: Skill file not found: {skill_md}[/red]")
+            console.print()
+    
+    elif cmd == "search":
+        if not arg:
+            console.print()
+            console.print("[yellow]Usage: /skills search <query>[/yellow]")
+            console.print()
+            return
+        
+        skills = list_skills(skills_dir)
+        query = arg.lower()
+        matches = [s for s in skills if query in s["name"].lower() or query in s["description"].lower()]
+        
+        if not matches:
+            console.print()
+            console.print(f"[yellow]No skills matching '{arg}'[/yellow]")
+            console.print()
+            return
+        
+        console.print()
+        console.print(f"[bold]Skills matching '{arg}':[/bold]", style="cyan")
+        console.print()
+        
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Name", style="bold cyan")
+        table.add_column("Description")
+        
+        for skill in matches:
+            table.add_row(skill["name"], skill["description"])
+        
+        console.print(table)
+        console.print()
+    
+    else:
+        console.print()
+        console.print(f"[yellow]Unknown subcommand: {cmd}[/yellow]")
+        console.print("[bold]Available commands:[/bold]")
+        console.print("  /skills list           - List all skills")
+        console.print("  /skills show <name>    - Show skill details")
+        console.print("  /skills search <query> - Search skills")
+        console.print()

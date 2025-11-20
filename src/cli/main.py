@@ -151,7 +151,7 @@ async def simple_cli(agent, assistant_id: str | None, session_state, baseline_to
 
         # Check for slash commands first
         if user_input.startswith("/"):
-            result = handle_command(user_input, agent, token_tracker)
+            result = handle_command(user_input, agent, token_tracker, assistant_id)
             if result == "exit":
                 console.print("\nGoodbye!", style=COLORS["primary"])
                 break
