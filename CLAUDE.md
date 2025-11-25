@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **deepagents-hk** 是基于 Deep Agents 框架开发的港股智能分析系统，专门处理港交所公告、PDF 文档解析和智能摘要生成。
 
 **上游同步记录**:
+- 2025-11-25: ✅ 上下文窗口分数、工具返回字符串、Windows路径修复、依赖升级 (deec90d, 0d298da, d13e341)
 - 2025-11-20: ✅ Skills系统和双范围内存 (4c4a552)
 - 2025-11-11: ✅ 移植子代理错误处理优化 (766c41c)
 - 2025-11-11: ✅ 移植 fetch_url 网页抓取工具 (e63487e)

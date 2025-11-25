@@ -123,7 +123,7 @@ class TestFilesystemMiddleware:
         result = ls_tool.invoke(
             {"runtime": ToolRuntime(state=state, context=None, tool_call_id="", store=None, stream_writer=lambda _: None, config={}), "path": "/"}
         )
-        assert result == ["/test.txt", "/test2.txt"]
+        assert result == str(["/test.txt", "/test2.txt"])
 
     def test_ls_shortterm_with_path(self):
         state = FilesystemState(
@@ -245,11 +245,8 @@ class TestFilesystemMiddleware:
             }
         )
         # Standard glob: *.py only matches files in root directory, not subdirectories
-        assert "/test.py" in result
-        assert "/test.txt" not in result
-        assert "/pokemon/charmander.py" not in result
-        assert len(result) == 1
-        assert result[0] == "/test.py"
+        # Result is now a string representation of a list
+        assert result == str(["/test.py"])
 
     def test_glob_search_shortterm_wildcard_pattern(self):
         state = FilesystemState(
@@ -371,7 +368,7 @@ class TestFilesystemMiddleware:
             }
         )
         print(glob_search_tool)
-        assert result == []
+        assert result == str([])
 
     def test_grep_search_shortterm_files_with_matches(self):
         state = FilesystemState(

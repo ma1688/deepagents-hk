@@ -25,6 +25,7 @@ from langchain.agents.middleware.types import (
     ModelRequest,
     ModelResponse,
 )
+from langgraph.runtime import Runtime
 
 from src.cli.skills.load import SkillMetadata, list_skills
 
@@ -159,7 +160,7 @@ class SkillsMiddleware(AgentMiddleware):
     def before_agent(
         self,
         state: SkillsState,
-        runtime,
+        runtime: Runtime,
     ) -> SkillsStateUpdate | None:
         """Load skills metadata before agent execution.
 
