@@ -4,6 +4,7 @@ import os
 import sys
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent.parent
@@ -12,8 +13,27 @@ sys.path.insert(0, str(project_root))
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 
-from src.agents.main_agent import create_hkex_agent
-from src.tools.hkex_tools import search_hkex_announcements
+# Lazy imports to avoid circular import issues
+_create_hkex_agent = None
+_search_hkex_announcements = None
+
+
+def _get_hkex_agent_func():
+    """Lazy load create_hkex_agent to avoid circular imports."""
+    global _create_hkex_agent
+    if _create_hkex_agent is None:
+        from src.agents.main_agent import create_hkex_agent
+        _create_hkex_agent = create_hkex_agent
+    return _create_hkex_agent
+
+
+def _get_search_func():
+    """Lazy load search_hkex_announcements to avoid circular imports."""
+    global _search_hkex_announcements
+    if _search_hkex_announcements is None:
+        from src.tools.hkex_tools import search_hkex_announcements
+        _search_hkex_announcements = search_hkex_announcements
+    return _search_hkex_announcements
 
 
 class AgentService:
@@ -93,6 +113,7 @@ class AgentService:
     def agent(self):
         """Get or create the HKEX agent."""
         if self._agent is None:
+            create_hkex_agent = _get_hkex_agent_func()
             self._agent = create_hkex_agent(
                 model=self.model,
                 assistant_id="web-agent",
@@ -168,7 +189,8 @@ class AgentService:
         Returns:
             Search results dictionary
         """
-        return search_hkex_announcements.invoke({
+        search_func = _get_search_func()
+        return search_func.invoke({
             "stock_code": stock_code,
             "from_date": from_date,
             "to_date": to_date,

@@ -190,7 +190,7 @@ async def test_configuration(
     db: Annotated[AsyncSession, Depends(get_db)]
 ) -> dict:
     """Test if the current configuration is valid."""
-    from ..services.agent_service import AgentService, decrypt_api_key
+    from ..services.agent_service import decrypt_api_key
     
     config = await crud.get_or_create_user_config(db, user_id)
     
@@ -202,22 +202,35 @@ async def test_configuration(
     
     try:
         api_key = decrypt_api_key(config.api_key_encrypted)
-        service = AgentService(
-            provider=config.provider,
-            model_name=config.model_name,
-            api_key=api_key,
-            base_url=config.base_url,
-            temperature=config.temperature,
-            max_tokens=100,  # Small for testing
-        )
+        
+        # Use a simple LLM test instead of full AgentService to avoid circular imports
+        from langchain_openai import ChatOpenAI
+        
+        if config.provider == "anthropic":
+            from langchain_anthropic import ChatAnthropic
+            llm = ChatAnthropic(
+                model=config.model_name,
+                api_key=api_key,
+                max_tokens=50,
+            )
+        else:
+            base_url = config.base_url
+            if config.provider == "siliconflow" and not base_url:
+                base_url = "https://api.siliconflow.cn/v1"
+            llm = ChatOpenAI(
+                model=config.model_name,
+                api_key=api_key,
+                base_url=base_url,
+                max_tokens=50,
+            )
         
         # Try a simple request
-        response = await service.chat("Hello, respond with 'OK' only.")
+        response = await llm.ainvoke("Respond with only: OK")
         
         return {
             "status": "ok",
             "message": "Configuration is valid",
-            "test_response": response[:100]
+            "test_response": str(response.content)[:100]
         }
     except Exception as e:
         raise HTTPException(

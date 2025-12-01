@@ -13,7 +13,12 @@ from ..models.schemas import (
     MessageResponse,
     ConversationResponse,
 )
-from ..services.agent_service import AgentService, decrypt_api_key
+from ..services.agent_service import decrypt_api_key
+
+# Lazy import to avoid circular imports
+def _get_agent_service_class():
+    from ..services.agent_service import AgentService
+    return AgentService
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -21,7 +26,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 async def get_agent_service(
     db: AsyncSession,
     user_id: uuid.UUID
-) -> AgentService:
+):
     """Create agent service with user's configuration."""
     config = await crud.get_or_create_user_config(db, user_id)
     
@@ -32,6 +37,7 @@ async def get_agent_service(
         except Exception:
             pass
     
+    AgentService = _get_agent_service_class()
     return AgentService(
         provider=config.provider,
         model_name=config.model_name,
