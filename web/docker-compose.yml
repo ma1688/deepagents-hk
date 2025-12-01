@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hkex-postgres
+    environment:
+      POSTGRES_USER: hkex
+      POSTGRES_PASSWORD: hkex_secret_2024
+      POSTGRES_DB: hkex_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hkex -d hkex_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
