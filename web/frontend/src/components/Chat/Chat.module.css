@@ -25,8 +25,92 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  max-width: var(--chat-max-width);
-  margin: 0 auto;
+  flex: 1;
+}
+
+/* User Menu */
+.userMenu {
+  position: relative;
+}
+
+.userButton {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+}
+
+.userButton:hover {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+  border-color: var(--color-primary);
+}
+
+.userDropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-sm));
+  right: 0;
+  width: 240px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+  animation: slideUp var(--transition-fast);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+}
+
+.userInfo svg {
+  color: var(--color-primary);
+}
+
+.userName {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.guestBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+  margin-top: var(--spacing-xs);
+}
+
+.dropdownDivider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 0;
+}
+
+.logoutBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  transition: background var(--transition-fast);
+}
+
+.logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .logo {

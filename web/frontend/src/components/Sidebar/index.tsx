@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   Menu,
 } from 'lucide-react';
-import { useChatStore, useUserStore, useConfigStore } from '@/stores';
+import { useChatStore, useConfigStore, useAuthStore } from '@/stores';
 import { historyApi } from '@/api/client';
 import { ConversationListItem, TokenUsageSummary } from '@/types';
 import styles from './Sidebar.module.css';
@@ -24,7 +24,8 @@ export function Sidebar() {
   const [editTitle, setEditTitle] = useState('');
   const [tokenStats, setTokenStats] = useState<TokenUsageSummary | null>(null);
 
-  const { userId } = useUserStore();
+  const { user } = useAuthStore();
+  const userId = user?.id || '';
   const { toggleConfigPanel } = useConfigStore();
   const {
     conversations,

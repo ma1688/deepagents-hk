@@ -1,19 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Bot, User } from 'lucide-react';
+import { Send, Loader2, Bot, User, LogOut, UserCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useChatStore, useUserStore, useConfigStore } from '@/stores';
+import { useChatStore, useConfigStore, useAuthStore } from '@/stores';
 import { createChatWebSocket } from '@/api/client';
 import { WSMessage, Message } from '@/types';
 import styles from './Chat.module.css';
 
 export function Chat() {
   const [input, setInput] = useState('');
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  const { userId } = useUserStore();
+  const { user, logout } = useAuthStore();
+  const userId = user?.id || '';
   const { config } = useConfigStore();
   const {
     messages,
@@ -150,6 +152,44 @@ export function Chat() {
             <h1 className={styles.title}>HKEX Agent</h1>
             <p className={styles.subtitle}>港股智能分析助手</p>
           </div>
+        </div>
+        
+        {/* User Menu */}
+        <div className={styles.userMenu}>
+          <button 
+            className={styles.userButton}
+            onClick={() => setShowUserMenu(!showUserMenu)}
+          >
+            <UserCircle size={24} />
+            <span>{user?.username || user?.email || '游客'}</span>
+          </button>
+          
+          {showUserMenu && (
+            <div className={styles.userDropdown}>
+              <div className={styles.userInfo}>
+                <UserCircle size={32} />
+                <div>
+                  <p className={styles.userName}>
+                    {user?.username || user?.email || '游客用户'}
+                  </p>
+                  {user?.isGuest && (
+                    <span className={styles.guestBadge}>游客模式</span>
+                  )}
+                </div>
+              </div>
+              <div className={styles.dropdownDivider} />
+              <button 
+                className={styles.logoutBtn}
+                onClick={() => {
+                  logout();
+                  setShowUserMenu(false);
+                }}
+              >
+                <LogOut size={16} />
+                退出登录
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

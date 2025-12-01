@@ -25,7 +25,7 @@ class Base(DeclarativeBase):
 
 
 class User(Base):
-    """User model for tracking individual users."""
+    """User model for tracking individual users with authentication."""
     
     __tablename__ = "users"
     
@@ -34,9 +34,37 @@ class User(Base):
         primary_key=True, 
         default=uuid.uuid4
     )
+    email: Mapped[str | None] = mapped_column(
+        String(255), 
+        unique=True, 
+        index=True,
+        nullable=True
+    )
+    username: Mapped[str | None] = mapped_column(
+        String(100),
+        unique=True,
+        index=True,
+        nullable=True
+    )
+    password_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True
+    )
+    is_guest: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True  # Default to guest user
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, 
         default=datetime.utcnow
+    )
+    last_login: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True
     )
     
     # Relationships

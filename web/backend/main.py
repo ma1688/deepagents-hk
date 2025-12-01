@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv(project_root / ".env")
 
 from .db.database import init_db
-from .routes import chat_router, config_router, history_router, search_router
+from .routes import auth_router, chat_router, config_router, history_router, search_router
 
 
 @asynccontextmanager
@@ -54,6 +54,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(config_router)
 app.include_router(history_router)
