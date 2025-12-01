@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useChatStore, useConfigStore, useAuthStore } from '@/stores';
-import { createChatWebSocket } from '@/api/client';
+import { createChatWebSocket, configApi } from '@/api/client';
 import { WSMessage, Message } from '@/types';
 import styles from './Chat.module.css';
 
@@ -16,7 +16,16 @@ export function Chat() {
   
   const { user, logout } = useAuthStore();
   const userId = user?.id || '';
-  const { config } = useConfigStore();
+  const { config, setConfig } = useConfigStore();
+  
+  // Load config on mount
+  useEffect(() => {
+    if (!userId) return;
+    
+    configApi.getConfig(userId)
+      .then((data) => setConfig(data))
+      .catch(console.error);
+  }, [userId, setConfig]);
   const {
     messages,
     isStreaming,

@@ -1,9 +1,11 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { useChatStore, useUserStore } from '@/stores';
+import { useChatStore } from '@/stores';
+import { useAuthStore } from '@/stores/authStore';
 import { WSMessage, Message } from '@/types';
 
 export function useWebSocket() {
-  const { userId } = useUserStore();
+  const { user } = useAuthStore();
+  const userId = user?.id;
   const {
     ws,
     setWebSocket,
