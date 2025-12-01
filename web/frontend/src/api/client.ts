@@ -27,9 +27,24 @@ async function apiRequest<T>(
 
 // ==================== Config API ====================
 
+// Helper to convert snake_case to camelCase for model options
+function mapModels(data: { models: any[] }): { models: import('@/types').ModelOption[] } {
+  return {
+    models: data.models.map(m => ({
+      provider: m.provider,
+      modelName: m.model_name,
+      displayName: m.display_name,
+      contextLimit: m.context_limit,
+      pricePerMillion: m.price_per_million,
+    }))
+  };
+}
+
 export const configApi = {
-  getModels: () => 
-    apiRequest<{ models: import('@/types').ModelOption[] }>('/config/models'),
+  getModels: async () => {
+    const data = await apiRequest<{ models: any[] }>('/config/models');
+    return mapModels(data);
+  },
   
   getModelsByProvider: (provider: string) =>
     apiRequest<{ models: import('@/types').ModelOption[] }>(`/config/models/${provider}`),
