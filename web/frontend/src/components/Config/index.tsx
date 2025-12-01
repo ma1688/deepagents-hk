@@ -11,13 +11,15 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
-import { useConfigStore, useUserStore } from '@/stores';
+import { useConfigStore } from '@/stores';
+import { useAuthStore } from '@/stores/authStore';
 import { configApi } from '@/api/client';
 import { ModelOption } from '@/types';
 import styles from './Config.module.css';
 
 export function ConfigPanel() {
-  const { userId } = useUserStore();
+  const { user } = useAuthStore();
+  const userId = user?.id;
   const {
     config,
     availableModels,

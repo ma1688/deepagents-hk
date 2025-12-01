@@ -40,6 +40,21 @@ function mapModels(data: { models: any[] }): { models: import('@/types').ModelOp
   };
 }
 
+// Helper to convert snake_case to camelCase for user config
+function mapConfig(data: any): import('@/types').UserConfig {
+  return {
+    id: data.id,
+    userId: data.user_id,
+    provider: data.provider,
+    modelName: data.model_name,
+    baseUrl: data.base_url,
+    temperature: data.temperature,
+    maxTokens: data.max_tokens,
+    hasApiKey: data.has_api_key,
+    updatedAt: data.updated_at,
+  };
+}
+
 export const configApi = {
   getModels: async () => {
     const data = await apiRequest<{ models: any[] }>('/config/models');
@@ -49,11 +64,13 @@ export const configApi = {
   getModelsByProvider: (provider: string) =>
     apiRequest<{ models: import('@/types').ModelOption[] }>(`/config/models/${provider}`),
   
-  getConfig: (userId: string) =>
-    apiRequest<import('@/types').UserConfig>(`/config/${userId}`),
+  getConfig: async (userId: string) => {
+    const data = await apiRequest<any>(`/config/${userId}`);
+    return mapConfig(data);
+  },
   
-  updateConfig: (userId: string, data: Partial<import('@/types').UserConfig> & { apiKey?: string }) =>
-    apiRequest<import('@/types').UserConfig>(`/config/${userId}`, {
+  updateConfig: async (userId: string, data: Partial<import('@/types').UserConfig> & { apiKey?: string }) => {
+    const response = await apiRequest<any>(`/config/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({
         provider: data.provider,
@@ -63,7 +80,9 @@ export const configApi = {
         temperature: data.temperature,
         max_tokens: data.maxTokens,
       }),
-    }),
+    });
+    return mapConfig(response);
+  },
   
   deleteApiKey: (userId: string) =>
     apiRequest<{ status: string }>(`/config/${userId}/api-key`, { method: 'DELETE' }),
