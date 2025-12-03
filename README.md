@@ -169,7 +169,7 @@ docker compose logs -f
 docker compose down
 ```
 
-访问 http://localhost:8000 即可使用。数据持久化到 Docker volumes。
+访问 http://localhost:8666 即可使用。数据持久化到 Docker volumes。
 
 **Web 界面特性**：
 - 🎨 现代化深色主题界面

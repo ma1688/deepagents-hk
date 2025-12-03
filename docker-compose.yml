@@ -9,7 +9,7 @@ services:
     container_name: hkex-agent
     restart: unless-stopped
     ports:
-      - "${CHAINLIT_PORT:-8000}:8000"
+      - "${CHAINLIT_PORT:-8666}:8666"
     
     # 环境变量配置
     environment:
@@ -42,7 +42,7 @@ services:
     
     # 健康检查
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8666/"]
       interval: 30s
       timeout: 10s
       retries: 3
