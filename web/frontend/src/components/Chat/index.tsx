@@ -13,6 +13,7 @@ export function Chat() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const streamingContentRef = useRef<string>('');
   
   const { user, logout } = useAuthStore();
   const userId = user?.id || '';
@@ -45,73 +46,102 @@ export function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
-  // Initialize WebSocket
+  // Keep streamingContent ref up to date
+  useEffect(() => {
+    streamingContentRef.current = streamingContent;
+  }, [streamingContent]);
+
+  // Initialize WebSocket with reconnection
   useEffect(() => {
     if (!userId) return;
     
-    const websocket = createChatWebSocket(userId);
+    let websocket: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isUnmounting = false;
     
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-    };
-    
-    websocket.onmessage = (event) => {
-      const data: WSMessage = JSON.parse(event.data);
+    const connect = () => {
+      if (isUnmounting) return;
       
-      switch (data.type) {
-        case 'info':
-          if (data.conversationId) {
-            setCurrentConversation(data.conversationId);
-          }
-          break;
-        case 'content':
-          appendStreamingContent(data.content || '');
-          break;
-        case 'done':
-          // Add assistant message to list
-          if (data.messageId && streamingContent) {
-            const assistantMessage: Message = {
-              id: data.messageId,
-              conversationId: data.conversationId || '',
+      console.log('Creating WebSocket connection...');
+      websocket = createChatWebSocket(userId);
+      
+      websocket.onopen = () => {
+        console.log('WebSocket connected');
+        setWebSocket(websocket);
+      };
+      
+      websocket.onmessage = (event) => {
+        const data: WSMessage = JSON.parse(event.data);
+        
+        switch (data.type) {
+          case 'info':
+            if (data.conversationId) {
+              setCurrentConversation(data.conversationId);
+            }
+            break;
+          case 'content':
+            appendStreamingContent(data.content || '');
+            break;
+          case 'done':
+            // Add assistant message to list - use ref to get latest value
+            const finalContent = streamingContentRef.current;
+            console.log('Done received, streamingContent:', finalContent?.substring(0, 50));
+            if (data.messageId && finalContent) {
+              const assistantMessage: Message = {
+                id: data.messageId,
+                conversationId: data.conversationId || '',
+                role: 'assistant',
+                content: finalContent,
+                createdAt: new Date().toISOString(),
+              };
+              addMessage(assistantMessage);
+            }
+            clearStreamingContent();
+            setIsStreaming(false);
+            break;
+          case 'error':
+            console.error('Chat error:', data.content);
+            // Display error message to user
+            const errorMessage: Message = {
+              id: `error-${Date.now()}`,
+              conversationId: currentConversationId || '',
               role: 'assistant',
-              content: streamingContent,
+              content: `❌ **错误**: ${data.content}`,
               createdAt: new Date().toISOString(),
             };
-            addMessage(assistantMessage);
-          }
-          clearStreamingContent();
-          setIsStreaming(false);
-          break;
-        case 'error':
-          console.error('Chat error:', data.content);
-          // Display error message to user
-          const errorMessage: Message = {
-            id: `error-${Date.now()}`,
-            conversationId: currentConversationId || '',
-            role: 'assistant',
-            content: `❌ **错误**: ${data.content}`,
-            createdAt: new Date().toISOString(),
-          };
-          addMessage(errorMessage);
-          clearStreamingContent();
-          setIsStreaming(false);
-          break;
-      }
+            addMessage(errorMessage);
+            clearStreamingContent();
+            setIsStreaming(false);
+            break;
+        }
+      };
+      
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsStreaming(false);
+      };
+      
+      websocket.onclose = () => {
+        console.log('WebSocket closed');
+        setWebSocket(null);
+        // Reconnect after 3 seconds
+        if (!isUnmounting) {
+          console.log('Scheduling reconnection in 3 seconds...');
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
     };
     
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsStreaming(false);
-    };
-    
-    websocket.onclose = () => {
-      console.log('WebSocket closed');
-    };
-    
-    setWebSocket(websocket);
+    connect();
     
     return () => {
-      websocket.close();
+      isUnmounting = true;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (websocket) {
+        websocket.close();
+      }
     };
   }, [userId]);
 
@@ -134,6 +164,21 @@ export function Chat() {
     console.log('handleSend called:', 'input="' + input.trim() + '"', 'isStreaming=' + isStreaming, 'ws=' + !!ws, 'hasApiKey=' + hasApiKey);
     if (!input.trim() || isStreaming || !ws) {
       console.log('handleSend blocked: noInput=' + !input.trim() + ' isStreaming=' + isStreaming + ' noWs=' + !ws);
+      return;
+    }
+    
+    // Check WebSocket state
+    if (ws.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket is not open. State:', ws.readyState);
+      // Show error to user
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        conversationId: currentConversationId || '',
+        role: 'assistant',
+        content: '❌ 连接已断开，正在重新连接...',
+        createdAt: new Date().toISOString(),
+      };
+      addMessage(errorMessage);
       return;
     }
     

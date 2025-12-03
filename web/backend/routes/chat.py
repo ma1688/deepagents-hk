@@ -81,9 +81,11 @@ async def chat_websocket(
         
         while True:
             # Receive message
+            print("[WS] Waiting for message...")
             data = await websocket.receive_json()
             message = data.get("message", "")
             conversation_id = data.get("conversation_id")
+            print(f"[WS] Received message: {message[:50]}... conv_id={conversation_id}")
             logger.info(f"Received message: {message[:50]}... conv_id={conversation_id}")
             
             if not message:
@@ -111,14 +113,18 @@ async def chat_websocket(
             })
             
             # Stream response
+            print(f"[WS] Starting stream response for message: {message[:30]}...")
             logger.info(f"Starting stream response for message: {message[:30]}...")
             response_parts = []
             try:
+                chunk_count = 0
                 async for chunk in agent_service.chat_stream(
                     message, 
                     thread_id=str(conv.id)
                 ):
+                    chunk_count += 1
                     response_parts.append(chunk)
+                    print(f"[WS] Streaming chunk #{chunk_count}: {chunk[:50] if chunk else 'empty'}...")
                     logger.debug(f"Streaming chunk: {chunk[:50] if chunk else 'empty'}...")
                     await websocket.send_json({
                         "type": "content",
@@ -127,6 +133,7 @@ async def chat_websocket(
                 
                 # Save assistant message
                 full_response = "".join(response_parts)
+                print(f"[WS] Stream complete. Total chunks: {chunk_count}, Response length: {len(full_response)}")
                 assistant_msg = await crud.create_message(
                     db, conv.id, "assistant", full_response
                 )
@@ -136,11 +143,13 @@ async def chat_websocket(
                     title = message[:50] + ("..." if len(message) > 50 else "")
                     await crud.update_conversation_title(db, conv.id, title)
                 
+                print(f"[WS] Sending done message...")
                 await websocket.send_json({
                     "type": "done",
                     "message_id": str(assistant_msg.id),
                     "conversation_id": str(conv.id)
                 })
+                print(f"[WS] Done message sent!")
                 
             except Exception as e:
                 logger.error(f"Error generating response: {e}", exc_info=True)

@@ -129,13 +129,20 @@ class AgentService:
             config=config,
             stream_mode=["messages"],
         ):
-            if isinstance(chunk, tuple) and len(chunk) == 3:
+            # Handle 2-tuple format: ('messages', (AIMessageChunk, metadata))
+            if isinstance(chunk, tuple) and len(chunk) == 2:
+                stream_mode, data = chunk
+                if stream_mode == "messages" and isinstance(data, tuple) and len(data) == 2:
+                    msg, metadata = data
+                    if hasattr(msg, "content") and msg.content:
+                        yield msg.content
+            # Handle 3-tuple format (legacy): (namespace, 'messages', (AIMessageChunk, metadata))
+            elif isinstance(chunk, tuple) and len(chunk) == 3:
                 namespace, stream_mode, data = chunk
-                if stream_mode == "messages":
-                    if isinstance(data, tuple) and len(data) == 2:
-                        msg, metadata = data
-                        if hasattr(msg, "content") and msg.content:
-                            yield msg.content
+                if stream_mode == "messages" and isinstance(data, tuple) and len(data) == 2:
+                    msg, metadata = data
+                    if hasattr(msg, "content") and msg.content:
+                        yield msg.content
     
     async def chat(self, message: str, thread_id: str = "main") -> str:
         """Get complete chat response from agent.
