@@ -344,6 +344,9 @@ def create_model_from_config(config: UserConfig):
     Returns:
         LangChain Chat 模型实例
     """
+    # 获取实际使用的模型名称（自定义优先）
+    effective_model = config.get_effective_model()
+    
     # 获取 API Key（优先使用用户配置，否则使用环境变量）
     if config.provider == APIProvider.SILICONFLOW.value:
         api_key = config.api_key_override or os.environ.get("SILICONFLOW_API_KEY")
@@ -352,7 +355,7 @@ def create_model_from_config(config: UserConfig):
         
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
-            model=config.model,
+            model=effective_model,
             base_url="https://api.siliconflow.cn/v1",
             api_key=api_key,
             temperature=config.temperature,
@@ -369,7 +372,7 @@ def create_model_from_config(config: UserConfig):
         
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
-            model=config.model,
+            model=effective_model,
             api_key=api_key,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
@@ -385,7 +388,7 @@ def create_model_from_config(config: UserConfig):
         
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
-            model_name=config.model,
+            model_name=effective_model,
             api_key=api_key,
             max_tokens=config.max_tokens,
             # Anthropic 不支持 top_p 等参数
@@ -425,9 +428,16 @@ def build_settings_widgets(config: UserConfig) -> list:
         Select(
             id="model",
             label="模型",
-            description="选择使用的模型",
+            description="选择预设模型（如有自定义模型则忽略）",
             values=model_options if model_options else ["deepseek-chat"],
             initial_value=config.model if config.model in model_options else (model_options[0] if model_options else "deepseek-chat"),
+        ),
+        TextInput(
+            id="custom_model",
+            label="自定义模型 (可选)",
+            description="输入自定义模型名称，填写后将优先使用此模型",
+            initial=config.custom_model or "",
+            placeholder="例如: Pro/deepseek-ai/DeepSeek-V3",
         ),
         TextInput(
             id="api_key_override",
@@ -447,14 +457,12 @@ def build_settings_widgets(config: UserConfig) -> list:
             step=0.1,
             initial=config.temperature,
         ),
-        Slider(
+        TextInput(
             id="max_tokens",
             label="Max Tokens",
-            description="最大输出 Token 数",
-            min=1000,
-            max=32000,
-            step=1000,
-            initial=config.max_tokens,
+            description="最大输出 Token 数（建议范围 1000-128000）",
+            initial=str(config.max_tokens),
+            placeholder="8000",
         ),
         Slider(
             id="top_p",
@@ -501,6 +509,14 @@ def build_settings_widgets(config: UserConfig) -> list:
             values=preset_options,
             initial_value=config.preset,
         ),
+        
+        # === 测试连接 ===
+        Switch(
+            id="test_connection",
+            label="🔌 测试连接",
+            description="开启后点击确认，将测试模型是否可用",
+            initial=False,
+        ),
     ]
 
 
@@ -514,6 +530,11 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
     Returns:
         更新后的 UserConfig 对象
     """
+    # 处理自定义模型（空字符串转为 None）
+    custom_model = settings.get("custom_model", current_config.custom_model)
+    if custom_model:
+        custom_model = custom_model.strip() or None
+    
     # 检查是否切换了预设
     new_preset = settings.get("preset", current_config.preset)
     if new_preset != current_config.preset and new_preset in CONFIG_PRESETS:
@@ -522,6 +543,7 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
         return UserConfig(
             provider=settings.get("provider", current_config.provider),
             model=settings.get("model", current_config.model),
+            custom_model=custom_model,
             api_key_override=settings.get("api_key_override") or None,
             temperature=preset["temperature"],
             max_tokens=preset["max_tokens"],
@@ -535,13 +557,21 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
             preset=new_preset,
         )
     
+    # 处理 max_tokens（支持字符串输入）
+    max_tokens_raw = settings.get("max_tokens", current_config.max_tokens)
+    try:
+        max_tokens = int(max_tokens_raw) if max_tokens_raw else current_config.max_tokens
+    except (ValueError, TypeError):
+        max_tokens = current_config.max_tokens
+    
     # 正常更新
     return UserConfig(
         provider=settings.get("provider", current_config.provider),
         model=settings.get("model", current_config.model),
+        custom_model=custom_model,
         api_key_override=settings.get("api_key_override") or None,
         temperature=settings.get("temperature", current_config.temperature),
-        max_tokens=int(settings.get("max_tokens", current_config.max_tokens)),
+        max_tokens=max_tokens,
         top_p=settings.get("top_p", current_config.top_p),
         frequency_penalty=current_config.frequency_penalty,
         presence_penalty=current_config.presence_penalty,
@@ -551,6 +581,81 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
         show_download_links=settings.get("show_download_links", current_config.show_download_links),
         preset=new_preset,
     )
+
+
+# ============== 模型连接测试 ==============
+async def test_model_connection(config: UserConfig) -> tuple[bool, str, float]:
+    """测试模型连接是否正常.
+    
+    Args:
+        config: 用户配置
+        
+    Returns:
+        (成功与否, 消息, 响应时间秒)
+    """
+    import time
+    
+    try:
+        model = create_model_from_config(config)
+        effective_model = config.get_effective_model()
+        
+        # 发送简单测试消息
+        start_time = time.time()
+        response = await model.ainvoke([{"role": "user", "content": "Hi, respond with just 'OK'"}])
+        elapsed = time.time() - start_time
+        
+        # 检查响应
+        content = response.content if hasattr(response, 'content') else str(response)
+        if content:
+            return True, f"模型 `{effective_model}` 响应正常", elapsed
+        else:
+            return False, f"模型 `{effective_model}` 返回空响应", elapsed
+            
+    except Exception as e:
+        error_msg = str(e)
+        # 提取关键错误信息
+        if "401" in error_msg or "Unauthorized" in error_msg:
+            return False, "❌ API Key 无效或已过期", 0
+        elif "404" in error_msg or "not found" in error_msg.lower():
+            return False, f"❌ 模型 `{config.get_effective_model()}` 不存在", 0
+        elif "rate limit" in error_msg.lower() or "429" in error_msg:
+            return False, "❌ API 请求频率超限，请稍后重试", 0
+        elif "timeout" in error_msg.lower():
+            return False, "❌ 连接超时，请检查网络", 0
+        else:
+            return False, f"❌ 连接失败: {error_msg[:100]}", 0
+
+
+@cl.action_callback("test_connection")
+async def on_test_connection(action: cl.Action):
+    """处理测试连接按钮点击."""
+    config = cl.user_session.get("config")
+    if not config:
+        await cl.Message(content="⚠️ 配置未加载，请刷新页面", author="system").send()
+        return
+    
+    # 显示测试中状态
+    test_msg = cl.Message(content="🔄 **正在测试连接...**", author="system")
+    await test_msg.send()
+    
+    # 执行测试
+    success, message, elapsed = await test_model_connection(config)
+    
+    # 更新消息显示结果
+    if success:
+        test_msg.content = (
+            f"✅ **连接测试成功**\n\n"
+            f"- {message}\n"
+            f"- 响应时间: {elapsed:.2f} 秒"
+        )
+    else:
+        test_msg.content = (
+            f"**连接测试失败**\n\n"
+            f"- {message}\n\n"
+            f"💡 请检查 API Key 和模型名称是否正确"
+        )
+    
+    await test_msg.update()
 
 
 # ============== 设置更新处理 ==============
@@ -611,6 +716,7 @@ async def on_settings_update(settings: dict):
         
         # 显示更新成功消息
         provider_name = APIProvider.display_names().get(new_config.provider, new_config.provider)
+        
         await cl.Message(
             content=f"✅ **配置已更新**\n\n"
                     f"- Provider: {provider_name}\n"
@@ -621,6 +727,32 @@ async def on_settings_update(settings: dict):
                     f"- 自动审批: {'启用' if new_config.auto_approve else '禁用'}",
             author="system",
         ).send()
+        
+        # 检查是否需要测试连接
+        should_test = settings.get("test_connection", False)
+        if should_test:
+            # 显示测试中状态
+            test_msg = cl.Message(content="🔄 **正在测试连接...**", author="system")
+            await test_msg.send()
+            
+            # 执行测试
+            success, message, elapsed = await test_model_connection(new_config)
+            
+            # 更新消息显示结果
+            if success:
+                test_msg.content = (
+                    f"✅ **连接测试成功**\n\n"
+                    f"- {message}\n"
+                    f"- 响应时间: {elapsed:.2f} 秒"
+                )
+            else:
+                test_msg.content = (
+                    f"**连接测试失败**\n\n"
+                    f"- {message}\n\n"
+                    f"💡 请检查 API Key 和模型名称是否正确"
+                )
+            
+            await test_msg.update()
         
     except Exception as e:
         await cl.Message(

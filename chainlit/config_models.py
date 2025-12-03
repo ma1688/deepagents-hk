@@ -133,6 +133,7 @@ class UserConfig:
     # API 设置
     provider: str = APIProvider.SILICONFLOW.value
     model: str = "deepseek-chat"
+    custom_model: Optional[str] = None  # 自定义模型名称（优先于 model）
     api_key_override: Optional[str] = None  # 可选覆盖环境变量
     
     # 模型参数
@@ -204,9 +205,11 @@ class UserConfig:
         if not 0.0 <= self.temperature <= 2.0:
             errors.append(f"Temperature 必须在 0.0-2.0 之间: {self.temperature}")
         
-        # 验证 max_tokens
-        if not 100 <= self.max_tokens <= 128000:
-            errors.append(f"Max Tokens 必须在 100-128000 之间: {self.max_tokens}")
+        # 验证 max_tokens（放宽上限以支持不同模型）
+        if self.max_tokens < 100:
+            errors.append(f"Max Tokens 不能小于 100: {self.max_tokens}")
+        elif self.max_tokens > 1000000:
+            errors.append(f"Max Tokens 不能超过 1000000: {self.max_tokens}")
         
         # 验证 top_p
         if not 0.0 <= self.top_p <= 1.0:
@@ -220,11 +223,19 @@ class UserConfig:
     
     def get_model_display_name(self) -> str:
         """获取当前模型的显示名称."""
+        # 优先使用自定义模型
+        if self.custom_model:
+            return f"{self.custom_model} (自定义)"
+        
         models = self.get_available_models()
         for m in models:
             if m["id"] == self.model:
                 return f"{m['name']} ({m['context']})"
         return self.model
+    
+    def get_effective_model(self) -> str:
+        """获取实际使用的模型名称（自定义优先）."""
+        return self.custom_model if self.custom_model else self.model
 
 
 def get_default_config() -> UserConfig:
