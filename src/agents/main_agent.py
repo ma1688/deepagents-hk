@@ -201,11 +201,36 @@ async def create_hkex_agent(
     subagents = get_all_subagents()
 
     # Set up HITL interrupt configs
+    # Safe shell commands that don't need approval (read-only operations)
+    SAFE_SHELL_COMMANDS = {
+        "date", "ls", "pwd", "cat", "head", "tail", "grep", "find", "echo",
+        "wc", "which", "whoami", "hostname", "uname", "env", "printenv",
+        "file", "stat", "du", "df", "tree", "basename", "dirname",
+    }
+    
+    def is_safe_shell_command(command: str) -> bool:
+        """Check if a shell command is safe (read-only) and doesn't need approval."""
+        if not command:
+            return False
+        # Get the first word (command name)
+        cmd_parts = command.strip().split()
+        if not cmd_parts:
+            return False
+        cmd_name = cmd_parts[0]
+        # Handle commands with path (e.g., /bin/date)
+        if "/" in cmd_name:
+            cmd_name = cmd_name.split("/")[-1]
+        return cmd_name in SAFE_SHELL_COMMANDS
+    
     shell_interrupt_config: InterruptOnConfig = {
         "allowed_decisions": ["approve", "reject"],
         "description": lambda tool_call, state, runtime: (
             f"Shell Command: {tool_call['args'].get('command', 'N/A')}\n"
             f"Working Directory: {os.getcwd()}"
+        ),
+        # Only interrupt for non-safe commands
+        "should_interrupt": lambda tool_call, state, runtime: (
+            not is_safe_shell_command(tool_call['args'].get('command', ''))
         ),
     }
 

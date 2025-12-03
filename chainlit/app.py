@@ -535,9 +535,16 @@ async def on_message(message: cl.Message):
             # 1. 检测工具调用开始 --> 创建 Step
             if hasattr(msg, 'tool_calls') and msg.tool_calls:
                 for tool_call in msg.tool_calls:
-                    tool_name = tool_call.get("name", "unknown")
-                    tool_args = tool_call.get("args", {})
-                    tool_id = tool_call.get("id", tool_name)
+                    # 兼容字典和对象两种格式
+                    if isinstance(tool_call, dict):
+                        tool_name = tool_call.get("name", "unknown")
+                        tool_args = tool_call.get("args", {})
+                        tool_id = tool_call.get("id", tool_name)
+                    else:
+                        # LangChain ToolCall 对象
+                        tool_name = getattr(tool_call, "name", "unknown")
+                        tool_args = getattr(tool_call, "args", {})
+                        tool_id = getattr(tool_call, "id", tool_name)
 
                     # 创建可折叠的工具调用卡片
                     step = cl.Step(name=tool_name, type="tool")
