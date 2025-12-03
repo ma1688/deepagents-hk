@@ -94,57 +94,92 @@ async def check_and_send_file_download(tool_output: str, tool_name: str, config:
         tool_name: 工具名称
         config: 用户配置，用于检查是否启用下载链接
     """
+    # 调试日志
+    logger.debug(f"[文件下载检测] 工具: {tool_name}, 输出长度: {len(tool_output)}")
+    
     # 检查是否启用下载链接
     if config and not getattr(config, 'show_download_links', True):
+        logger.debug("[文件下载检测] 下载链接已禁用")
         return
     
     # 匹配常见文件路径模式
     # 支持 /md/xxx.md, /pdf_cache/xxx.pdf, ./xxx.xlsx 等格式
+    # 注意：中文字符和特殊字符需要更宽松的匹配
     file_patterns = [
-        r'(/md/[^\s\'"`,]+\.md)',  # /md/ 目录下的 markdown
-        r'(/pdf_cache/[^\s\'"`,]+\.(?:pdf|txt|json|xlsx|xls))',  # pdf_cache 目录
-        r'(\.?/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json|xlsx|xls))',  # 相对路径（支持中文）
-        r'([A-Za-z]:\\[^\s\'"`,]+\.(?:md|pdf|txt|json|xlsx|xls))',  # Windows 绝对路径
-        r'(/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json|xlsx|xls))',  # Unix 绝对路径（支持中文）
+        r'(/md/[^\s\'"`,\[\]]+\.md)',  # /md/ 目录下的 markdown（排除方括号）
+        r'(/pdf_cache/[^\s\'"`,\[\]]+\.(?:pdf|txt|json|xlsx|xls))',  # pdf_cache 目录
+        r'(\.?/[^\s\'"`,\[\]]+\.(?:md|pdf|txt|json|xlsx|xls))',  # 相对路径（更宽松）
+        r'([A-Za-z]:\\[^\s\'"`,\[\]]+\.(?:md|pdf|txt|json|xlsx|xls))',  # Windows 绝对路径
     ]
     
     found_files = set()
     for pattern in file_patterns:
         matches = re.findall(pattern, tool_output)
+        if matches:
+            logger.debug(f"[文件下载检测] 模式匹配到: {matches}")
         found_files.update(matches)
     
     # 如果没有找到文件，尝试更宽松的匹配
     if not found_files:
+        logger.debug("[文件下载检测] 标准模式未匹配，尝试宽松匹配")
         # 匹配任何以 .md, .pdf, .txt, .json, .xlsx, .xls 结尾的路径
-        loose_pattern = r'([^\s\'"`,]+\.(?:md|pdf|txt|json|xlsx|xls))'
+        loose_pattern = r'([^\s\'"`,\[\]]+\.(?:md|pdf|txt|json|xlsx|xls))'
         matches = re.findall(loose_pattern, tool_output)
+        logger.debug(f"[文件下载检测] 宽松匹配结果: {matches}")
         for match in matches:
             # 过滤掉明显不是路径的匹配
             if '/' in match or '\\' in match or match.startswith('.'):
                 found_files.add(match)
     
+    logger.debug(f"[文件下载检测] 最终找到的文件: {found_files}")
+    
     for file_path in found_files:
-        # 转换虚拟路径到实际路径
+        actual_path = None
+        
+        # 转换虚拟路径到实际路径，并检查多个可能的位置
+        # CompositeBackend 可能将文件路由到不同目录
+        candidate_paths = []
+        
         if file_path.startswith('/md/'):
-            actual_path = project_root / 'md' / file_path[4:]
+            candidate_paths.append(project_root / 'md' / file_path[4:])
         elif file_path.startswith('/pdf_cache/'):
-            actual_path = project_root / 'pdf_cache' / file_path[11:]
+            candidate_paths.append(project_root / 'pdf_cache' / file_path[11:])
         elif file_path.startswith('./'):
-            actual_path = project_root / file_path[2:]
+            candidate_paths.append(project_root / file_path[2:])
         elif file_path.startswith('/'):
             # 检查是否是项目内的绝对路径
             if str(project_root) in file_path:
-                actual_path = Path(file_path)
+                candidate_paths.append(Path(file_path))
             else:
-                actual_path = project_root / file_path[1:]
+                # 对于根目录的文件，检查多个可能位置
+                file_name = file_path[1:]  # 去掉开头的 /
+                candidate_paths.append(project_root / file_name)
+                # CompositeBackend 可能将 .md 文件路由到 /md/ 目录
+                if file_name.endswith('.md'):
+                    candidate_paths.append(project_root / 'md' / file_name)
+                # 也检查 pdf_cache 目录
+                if file_name.endswith(('.pdf', '.txt', '.json')):
+                    candidate_paths.append(project_root / 'pdf_cache' / file_name)
         else:
-            actual_path = project_root / file_path
+            candidate_paths.append(project_root / file_path)
+            # 也检查 md 和 pdf_cache 目录
+            if file_path.endswith('.md'):
+                candidate_paths.append(project_root / 'md' / file_path)
+            if file_path.endswith(('.pdf', '.txt', '.json')):
+                candidate_paths.append(project_root / 'pdf_cache' / file_path)
         
-        # 检查文件是否存在
-        if actual_path.exists() and actual_path.is_file():
+        # 查找第一个存在的文件
+        for candidate in candidate_paths:
+            logger.debug(f"[文件下载检测] 检查路径: {candidate}")
+            if candidate.exists() and candidate.is_file():
+                actual_path = candidate
+                break
+        
+        if actual_path:
             try:
                 # 创建 Chainlit 文件元素
                 file_name = actual_path.name
+                logger.debug(f"[文件下载检测] ✅ 文件存在，创建下载链接: {file_name}")
                 
                 # 发送文件下载链接
                 elements = [
@@ -161,7 +196,9 @@ async def check_and_send_file_download(tool_output: str, tool_name: str, config:
                 ).send()
                 
             except Exception as e:
-                logger.warning(f"Failed to create download link for {actual_path}: {e}")
+                logger.warning(f"[文件下载检测] 创建下载链接失败: {actual_path}: {e}")
+        else:
+            logger.debug(f"[文件下载检测] 文件不存在于任何候选位置: {candidate_paths}")
 
 
 # ============== 聊天记录分享功能 ==============
