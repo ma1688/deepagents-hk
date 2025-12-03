@@ -11,7 +11,10 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import aiosqlite
 
-from config_models import UserConfig, get_default_config, UserPreset
+from config_models import UserConfig, get_default_config, UserScene
+
+# 兼容别名
+UserPreset = UserScene
 
 
 class ConfigStorage:
@@ -75,7 +78,7 @@ class ConfigStorage:
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            # 用户自定义预设表
+            # 用户自定义场景表（含提示词）
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS user_presets (
                     id TEXT PRIMARY KEY,
@@ -85,6 +88,7 @@ class ConfigStorage:
                     temperature REAL DEFAULT 0.7,
                     max_tokens INTEGER DEFAULT 8000,
                     top_p REAL DEFAULT 0.9,
+                    system_prompt TEXT DEFAULT '',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -269,12 +273,12 @@ class ConfigStorage:
     
     # ============== 用户自定义预设管理 ==============
     
-    async def create_preset(self, user_id: str, preset: UserPreset) -> bool:
-        """创建用户预设.
+    async def create_preset(self, user_id: str, preset: UserScene) -> bool:
+        """创建用户场景.
         
         Args:
             user_id: 用户标识
-            preset: 预设对象
+            preset: 场景对象
             
         Returns:
             是否创建成功
@@ -282,22 +286,22 @@ class ConfigStorage:
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
-                    INSERT INTO user_presets (id, user_id, name, description, temperature, max_tokens, top_p)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO user_presets (id, user_id, name, description, temperature, max_tokens, top_p, system_prompt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (preset.id, user_id, preset.name, preset.description, 
-                      preset.temperature, preset.max_tokens, preset.top_p))
+                      preset.temperature, preset.max_tokens, preset.top_p, preset.system_prompt))
                 await db.commit()
             return True
         except Exception as e:
-            print(f"创建预设失败: {e}")
+            print(f"创建场景失败: {e}")
             return False
     
-    async def update_preset(self, user_id: str, preset: UserPreset) -> bool:
-        """更新用户预设.
+    async def update_preset(self, user_id: str, preset: UserScene) -> bool:
+        """更新用户场景.
         
         Args:
             user_id: 用户标识
-            preset: 预设对象
+            preset: 场景对象
             
         Returns:
             是否更新成功
@@ -306,14 +310,14 @@ class ConfigStorage:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
                     UPDATE user_presets 
-                    SET name = ?, description = ?, temperature = ?, max_tokens = ?, top_p = ?
+                    SET name = ?, description = ?, temperature = ?, max_tokens = ?, top_p = ?, system_prompt = ?
                     WHERE id = ? AND user_id = ?
                 """, (preset.name, preset.description, preset.temperature, 
-                      preset.max_tokens, preset.top_p, preset.id, user_id))
+                      preset.max_tokens, preset.top_p, preset.system_prompt, preset.id, user_id))
                 await db.commit()
             return True
         except Exception as e:
-            print(f"更新预设失败: {e}")
+            print(f"更新场景失败: {e}")
             return False
     
     async def delete_preset(self, user_id: str, preset_id: str) -> bool:
@@ -338,15 +342,15 @@ class ConfigStorage:
             print(f"删除预设失败: {e}")
             return False
     
-    async def get_preset(self, user_id: str, preset_id: str) -> Optional[UserPreset]:
-        """获取单个预设.
+    async def get_preset(self, user_id: str, preset_id: str) -> Optional[UserScene]:
+        """获取单个场景.
         
         Args:
             user_id: 用户标识
-            preset_id: 预设 ID
+            preset_id: 场景 ID
             
         Returns:
-            预设对象，不存在返回 None
+            场景对象，不存在返回 None
         """
         try:
             async with aiosqlite.connect(self.db_path) as db:
@@ -357,30 +361,31 @@ class ConfigStorage:
                 ) as cursor:
                     row = await cursor.fetchone()
                     if row:
-                        return UserPreset(
+                        return UserScene(
                             id=row["id"],
                             user_id=row["user_id"],
                             name=row["name"],
-                            description=row["description"],
+                            description=row["description"] or "",
                             temperature=row["temperature"],
                             max_tokens=row["max_tokens"],
                             top_p=row["top_p"],
+                            system_prompt=row["system_prompt"] if "system_prompt" in row.keys() else "",
                             created_at=row["created_at"],
                             updated_at=row["updated_at"],
                         )
             return None
         except Exception as e:
-            print(f"获取预设失败: {e}")
+            print(f"获取场景失败: {e}")
             return None
     
-    async def get_user_presets(self, user_id: str) -> List[UserPreset]:
-        """获取用户的所有自定义预设.
+    async def get_user_presets(self, user_id: str) -> List[UserScene]:
+        """获取用户的所有自定义场景.
         
         Args:
             user_id: 用户标识
             
         Returns:
-            预设列表
+            场景列表
         """
         try:
             async with aiosqlite.connect(self.db_path) as db:
@@ -390,22 +395,23 @@ class ConfigStorage:
                     (user_id,)
                 ) as cursor:
                     rows = await cursor.fetchall()
-                    return [
-                        UserPreset(
+                    results = []
+                    for row in rows:
+                        results.append(UserScene(
                             id=row["id"],
                             user_id=row["user_id"],
                             name=row["name"],
-                            description=row["description"],
+                            description=row["description"] or "",
                             temperature=row["temperature"],
                             max_tokens=row["max_tokens"],
                             top_p=row["top_p"],
+                            system_prompt=row["system_prompt"] if "system_prompt" in row.keys() else "",
                             created_at=row["created_at"],
                             updated_at=row["updated_at"],
-                        )
-                        for row in rows
-                    ]
+                        ))
+                    return results
         except Exception as e:
-            print(f"获取用户预设列表失败: {e}")
+            print(f"获取用户场景列表失败: {e}")
             return []
 
 

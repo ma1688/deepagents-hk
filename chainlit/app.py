@@ -40,17 +40,19 @@ from src.agents.main_agent import create_hkex_agent
 from local_storage import LocalStorageClient
 from config_models import (
     UserConfig,
-    UserPreset,
+    UserScene,
     APIProvider,
     MODEL_PRESETS,
-    CONFIG_PRESETS,
-    BUILTIN_PRESETS,
+    BUILTIN_SCENES,
     DEFAULT_SYSTEM_PROMPT,
     get_default_config,
     get_models_for_provider,
-    get_preset_options,
-    get_preset_display_name,
 )
+
+# 兼容旧代码
+UserPreset = UserScene
+BUILTIN_PRESETS = BUILTIN_SCENES
+CONFIG_PRESETS = BUILTIN_SCENES
 from config_storage import get_config_storage, init_config_storage
 import auth_service
 
@@ -313,7 +315,7 @@ async def get_presets():
             {"id": k, **v}
             for k, v in BUILTIN_PRESETS.items()
         ],
-        "user_presets": []  # 用户预设需要通过 Chainlit session 获取
+        "user_scenes": []  # 用户预设需要通过 Chainlit session 获取
     }
 
 
@@ -529,51 +531,28 @@ def create_model_from_config(config: UserConfig):
         raise ValueError(f"不支持的 API Provider: {config.provider}")
 
 
-async def get_all_presets_for_user(user_id: str) -> dict:
-    """获取用户所有可用预设（内置 + 自定义）.
+def get_all_scenes(user_scenes: list = None) -> dict:
+    """获取所有场景（内置 + 用户自定义）.
     
     Args:
-        user_id: 用户 ID
+        user_scenes: 用户自定义场景列表
         
     Returns:
-        合并后的预设字典
+        场景字典 {scene_id: scene_data}
     """
-    # 获取用户自定义预设
-    user_presets = await config_storage.get_user_presets(user_id)
-    
-    # 合并预设（内置 + 用户自定义）
-    all_presets = dict(BUILTIN_PRESETS)
-    for preset in user_presets:
-        # 用户预设以 "user:" 前缀区分
-        all_presets[f"user:{preset.id}"] = preset.to_preset_dict()
-    
-    return all_presets
+    all_scenes = dict(BUILTIN_SCENES)
+    if user_scenes:
+        for s in user_scenes:
+            all_scenes[f"user:{s.id}"] = s.to_scene_dict()
+    return all_scenes
 
 
-def get_available_prompts() -> list:
-    """获取可用的提示词列表."""
-    prompts = []
-    prompts_dir = project_root / "src" / "prompts"
-    if prompts_dir.exists():
-        for f in prompts_dir.glob("*.md"):
-            is_builtin = f.name in {"main_system_prompt.md", "pdf_analyzer_prompt.md", 
-                                    "report_generator_prompt.md", "longterm_memory_prompt.md", 
-                                    "default_agent_md.md"}
-            prompts.append({
-                "name": f.stem,
-                "filename": f.name,
-                "builtin": is_builtin,
-            })
-    prompts.sort(key=lambda x: (not x["builtin"], x["name"]))
-    return prompts
-
-
-def build_settings_widgets(config: UserConfig, user_presets: list = None) -> list:
-    """构建设置面板组件.
+def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list:
+    """构建设置面板组件 - 场景模式.
     
     Args:
         config: 当前用户配置
-        user_presets: 用户自定义预设列表
+        user_scenes: 用户自定义场景列表
         
     Returns:
         Chainlit 输入组件列表
@@ -583,41 +562,45 @@ def build_settings_widgets(config: UserConfig, user_presets: list = None) -> lis
     model_options = [m["id"] for m in models]
     model_labels = {m["id"]: f"{m['name']} ({m['context']})" for m in models}
     
-    # 参数预设选项（内置 + 用户自定义）
-    # 使用带参数值的显示名称
-    preset_options = []
-    for k, v in CONFIG_PRESETS.items():
-        display_name = get_preset_display_name(k, v)
-        preset_options.append(display_name)
+    # === 构建场景选项 ===
+    all_scenes = get_all_scenes(user_scenes)
+    scene_ids = list(all_scenes.keys())
+    scene_labels = {}
+    for sid, sdata in all_scenes.items():
+        name = sdata.get("name", sid)
+        desc = sdata.get("description", "")
+        scene_labels[sid] = f"{name} - {desc}" if desc else name
     
-    # 建立 ID 到显示名的映射
-    preset_id_to_display = {k: get_preset_display_name(k, v) for k, v in CONFIG_PRESETS.items()}
-    preset_display_to_id = {v: k for k, v in preset_id_to_display.items()}
-    
-    # 添加用户自定义预设
-    if user_presets:
-        for preset in user_presets:
-            preset_key = f"user:{preset.id}"
-            display_name = f"⭐ {preset.name} (T={preset.temperature}, {preset.max_tokens // 1000}K)"
-            preset_options.append(display_name)
-            preset_id_to_display[preset_key] = display_name
-            preset_display_to_id[display_name] = preset_key
-    
-    # 获取可用提示词列表
-    available_prompts = get_available_prompts()
-    prompt_options = ["（自定义）"] + [f"📄 {p['name']}" if p['builtin'] else f"⭐ {p['name']}" for p in available_prompts]
-    prompt_filenames = [""] + [p["filename"] for p in available_prompts]
-    
-    # 确定当前选中的提示词
-    current_prompt_option = "（自定义）"
-    if hasattr(config, 'prompt_file') and config.prompt_file:
-        for i, fname in enumerate(prompt_filenames):
-            if fname == config.prompt_file:
-                current_prompt_option = prompt_options[i]
-                break
+    # 当前场景
+    current_scene = getattr(config, 'scene', 'default')
+    if current_scene not in scene_ids:
+        current_scene = 'default'
     
     return [
-        # === API 设置 ===
+        # === 🎭 场景模式（核心）===
+        Select(
+            id="scene",
+            label="🎭 场景模式",
+            description="选择场景 = 参数 + 提示词一键切换（⭐ 自定义场景）",
+            values=scene_ids,
+            initial_value=current_scene,
+            labels=scene_labels,
+        ),
+        TextInput(
+            id="new_scene_name",
+            label="💾 保存为新场景",
+            description="将当前全部配置（参数+提示词）保存为新场景",
+            initial="",
+            placeholder="输入场景名称...",
+        ),
+        Switch(
+            id="delete_scene",
+            label="🗑️ 删除当前场景",
+            description="仅可删除自定义场景（⭐ 开头）",
+            initial=False,
+        ),
+        
+        # === 🔧 API 设置 ===
         Select(
             id="provider",
             label="API Provider",
@@ -628,26 +611,26 @@ def build_settings_widgets(config: UserConfig, user_presets: list = None) -> lis
         Select(
             id="model",
             label="模型",
-            description="选择预设模型（如有自定义模型则忽略）",
+            description="选择模型",
             values=model_options if model_options else ["deepseek-chat"],
             initial_value=config.model if config.model in model_options else (model_options[0] if model_options else "deepseek-chat"),
         ),
         TextInput(
             id="custom_model",
             label="自定义模型 (可选)",
-            description="输入自定义模型名称，填写后将优先使用此模型",
+            description="填写后优先使用此模型",
             initial=config.custom_model or "",
             placeholder="例如: Pro/deepseek-ai/DeepSeek-V3",
         ),
         TextInput(
             id="api_key_override",
             label="API Key (可选)",
-            description="覆盖环境变量中的 API Key，留空则使用默认配置",
+            description="覆盖环境变量中的 API Key",
             initial=config.api_key_override or "",
             placeholder="sk-...",
         ),
         
-        # === 模型参数 ===
+        # === 📊 模型参数（场景自动设置，可微调）===
         Slider(
             id="temperature",
             label="Temperature",
@@ -660,7 +643,7 @@ def build_settings_widgets(config: UserConfig, user_presets: list = None) -> lis
         TextInput(
             id="max_tokens",
             label="Max Tokens",
-            description="最大输出 Token 数（建议范围 1000-128000）",
+            description="最大输出 Token 数",
             initial=str(config.max_tokens),
             placeholder="8000",
         ),
@@ -674,145 +657,78 @@ def build_settings_widgets(config: UserConfig, user_presets: list = None) -> lis
             initial=config.top_p,
         ),
         
-        # === 系统设置 ===
+        # === ⚙️ 系统设置 ===
         Switch(
             id="enable_mcp",
             label="启用 MCP 集成",
-            description="启用 Model Context Protocol 扩展功能",
+            description="启用 Model Context Protocol 扩展",
             initial=config.enable_mcp,
         ),
         Switch(
             id="auto_approve",
             label="自动审批工具调用",
-            description="自动执行所有工具调用（关闭后需手动审批危险操作）",
+            description="关闭后需手动审批危险操作",
             initial=config.auto_approve,
         ),
-        Switch(
-            id="show_download_links",
-            label="显示下载链接",
-            description="自动检测生成的文件并提供下载链接",
-            initial=config.show_download_links,
-        ),
         
-        # === 提示词管理 ===
-        Select(
-            id="prompt_template",
-            label="提示词模板",
-            description="选择预设提示词模板（📄内置 ⭐自定义），或选择「自定义」手动编辑",
-            values=prompt_options,
-            initial_value=current_prompt_option,
-        ),
-        TextInput(
-            id="system_prompt",
-            label="系统提示词内容",
-            description="当前使用的系统提示词（选择模板后自动加载，可修改）",
-            initial=config.system_prompt[:200] + "..." if len(config.system_prompt) > 200 else config.system_prompt,
-            placeholder="你是港股智能分析系统...",
-        ),
-        TextInput(
-            id="save_prompt_as",
-            label="另存为新提示词",
-            description="输入名称，将当前提示词保存为新模板",
-            initial="",
-            placeholder="输入模板名称后点击确认",
-        ),
-        
-        # === 参数预设 ===
-        Select(
-            id="preset",
-            label="参数预设",
-            description="快速切换模型参数组合（⭐ 开头为自定义）",
-            values=preset_options,
-            initial_value=preset_id_to_display.get(config.preset, preset_options[0] if preset_options else "default"),
-        ),
-        
-        # === 自定义预设管理 ===
-        TextInput(
-            id="new_preset_name",
-            label="保存为新预设",
-            description="输入名称，将当前参数保存为自定义预设",
-            initial="",
-            placeholder="输入预设名称后点击确认即可保存",
-        ),
-        Switch(
-            id="delete_current_preset",
-            label="🗑️ 删除当前预设",
-            description="仅可删除自定义预设（⭐ 开头），内置预设不可删除",
-            initial=False,
-        ),
-        
-        # === 测试连接 ===
+        # === 🔌 测试连接 ===
         Switch(
             id="test_connection",
             label="🔌 测试连接",
-            description="开启后点击确认，将测试模型是否可用",
+            description="开启后点击确认测试模型连接",
             initial=False,
         ),
     ]
 
 
-def settings_to_config(settings: dict, current_config: UserConfig, user_presets_dict: dict = None) -> UserConfig:
+def settings_to_config(settings: dict, current_config: UserConfig, all_scenes: dict = None) -> UserConfig:
     """将设置面板值转换为配置对象.
     
     Args:
         settings: 设置面板返回的字典
-        current_config: 当前配置（用于获取未修改的值）
-        user_presets_dict: 用户自定义预设字典（可选）
+        current_config: 当前配置
+        all_scenes: 所有场景（内置+自定义）
         
     Returns:
         更新后的 UserConfig 对象
     """
-    # 处理自定义模型（空字符串转为 None）
+    # 处理自定义模型
     custom_model = settings.get("custom_model", current_config.custom_model)
     if custom_model:
         custom_model = custom_model.strip() or None
     
-    # 合并预设字典
-    all_presets = dict(CONFIG_PRESETS)
-    if user_presets_dict:
-        all_presets.update(user_presets_dict)
+    # 获取场景信息
+    scenes = all_scenes or BUILTIN_SCENES
+    new_scene = settings.get("scene", getattr(current_config, 'scene', 'default'))
+    current_scene = getattr(current_config, 'scene', 'default')
     
-    # 处理参数预设选择（从显示名称转为ID）
-    preset_display = settings.get("preset", "")
-    new_preset = current_config.preset
-    
-    # 尝试从显示名称解析预设ID
-    for preset_id, preset_data in all_presets.items():
-        display_name = get_preset_display_name(preset_id, preset_data)
-        if preset_display == display_name:
-            new_preset = preset_id
-            break
-    
-    # 检查是否切换了预设
-    if new_preset != current_config.preset and new_preset in all_presets:
-        # 应用预设
-        preset = all_presets[new_preset]
-        return UserConfig(
-            provider=settings.get("provider", current_config.provider),
-            model=settings.get("model", current_config.model),
-            custom_model=custom_model,
-            api_key_override=settings.get("api_key_override") or None,
-            temperature=preset["temperature"],
-            max_tokens=preset["max_tokens"],
-            top_p=preset["top_p"],
-            frequency_penalty=current_config.frequency_penalty,
-            presence_penalty=current_config.presence_penalty,
-            system_prompt=current_config.system_prompt,  # 保持当前提示词
-            prompt_file=current_config.prompt_file,
-            enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
-            auto_approve=settings.get("auto_approve", current_config.auto_approve),
-            show_download_links=settings.get("show_download_links", current_config.show_download_links),
-            preset=new_preset,
-        )
-    
-    # 处理 max_tokens（支持字符串输入）
+    # 处理 max_tokens
     max_tokens_raw = settings.get("max_tokens", current_config.max_tokens)
     try:
         max_tokens = int(max_tokens_raw) if max_tokens_raw else current_config.max_tokens
     except (ValueError, TypeError):
         max_tokens = current_config.max_tokens
     
-    # 正常更新
+    # 检查是否切换了场景
+    if new_scene != current_scene and new_scene in scenes:
+        # 应用场景配置（参数+提示词）
+        scene = scenes[new_scene]
+        return UserConfig(
+            provider=settings.get("provider", current_config.provider),
+            model=settings.get("model", current_config.model),
+            custom_model=custom_model,
+            api_key_override=settings.get("api_key_override") or None,
+            temperature=scene["temperature"],
+            max_tokens=scene["max_tokens"],
+            top_p=scene["top_p"],
+            system_prompt=scene.get("system_prompt", current_config.system_prompt),
+            enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
+            auto_approve=settings.get("auto_approve", current_config.auto_approve),
+            show_download_links=current_config.show_download_links,
+            scene=new_scene,
+        )
+    
+    # 正常更新（未切换场景）
     return UserConfig(
         provider=settings.get("provider", current_config.provider),
         model=settings.get("model", current_config.model),
@@ -821,14 +737,11 @@ def settings_to_config(settings: dict, current_config: UserConfig, user_presets_
         temperature=settings.get("temperature", current_config.temperature),
         max_tokens=max_tokens,
         top_p=settings.get("top_p", current_config.top_p),
-        frequency_penalty=current_config.frequency_penalty,
-        presence_penalty=current_config.presence_penalty,
-        system_prompt=current_config.system_prompt,  # 提示词在别处处理
-        prompt_file=current_config.prompt_file,
+        system_prompt=current_config.system_prompt,
         enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
         auto_approve=settings.get("auto_approve", current_config.auto_approve),
-        show_download_links=settings.get("show_download_links", current_config.show_download_links),
-        preset=new_preset,
+        show_download_links=current_config.show_download_links,
+        scene=new_scene,
     )
 
 
@@ -910,155 +823,100 @@ async def on_test_connection(action: cl.Action):
 # ============== 设置更新处理 ==============
 @cl.on_settings_update
 async def on_settings_update(settings: dict):
-    """处理设置更新.
+    """处理设置更新 - 场景模式.
     
     当用户在设置面板中修改配置时触发。
     支持：
-    - 修改配置参数
-    - 应用预设
-    - 保存新预设
-    - 删除自定义预设
+    - 切换场景（一键应用参数+提示词）
+    - 保存新场景
+    - 删除自定义场景
     """
     import uuid
     
     user = cl.user_session.get("user")
     user_id = user.identifier if user else "anonymous"
     
-    # 获取当前配置
+    # 获取当前配置和用户场景
     current_config = cl.user_session.get("config") or get_default_config()
+    user_scenes = await config_storage.get_user_presets(user_id)
+    all_scenes = get_all_scenes(user_scenes)
     
-    # === 处理保存新提示词 ===
-    save_prompt_as = settings.get("save_prompt_as", "").strip()
-    if save_prompt_as:
-        # 保存当前提示词为新模板
-        prompt_content = settings.get("system_prompt", current_config.system_prompt)
-        filename = save_prompt_as if save_prompt_as.endswith(".md") else f"{save_prompt_as}.md"
+    # === 处理保存新场景 ===
+    new_scene_name = settings.get("new_scene_name", "").strip()
+    if new_scene_name:
+        # 创建新场景（包含当前所有配置）
+        scene_id = str(uuid.uuid4())[:8]
         
-        # 安全检查
-        if ".." not in filename and "/" not in filename:
-            prompt_path = project_root / "src" / "prompts" / filename
-            try:
-                prompt_path.write_text(prompt_content, encoding="utf-8")
-                await cl.Message(
-                    content=f"✅ **提示词已保存**: ⭐ {save_prompt_as}\n\n文件: `{filename}`",
-                    author="system",
-                ).send()
-                
-                # 刷新设置面板
-                user_presets = await config_storage.get_user_presets(user_id)
-                settings_widgets = build_settings_widgets(current_config, user_presets)
-                await cl.ChatSettings(settings_widgets).send()
-            except Exception as e:
-                await cl.Message(
-                    content=f"❌ **保存提示词失败**: {e}",
-                    author="system",
-                ).send()
-        else:
-            await cl.Message(
-                content=f"❌ **无效的文件名**",
-                author="system",
-            ).send()
-        return
-    
-    # === 处理提示词模板选择 ===
-    prompt_template = settings.get("prompt_template", "（自定义）")
-    if prompt_template != "（自定义）" and prompt_template.startswith(("📄 ", "⭐ ")):
-        # 从模板名称提取文件名
-        prompt_name = prompt_template[2:]  # 移除前缀
-        prompt_filename = f"{prompt_name}.md"
-        prompt_path = project_root / "src" / "prompts" / prompt_filename
+        # 获取当前参数值
+        temperature = settings.get("temperature", current_config.temperature)
+        max_tokens_raw = settings.get("max_tokens", current_config.max_tokens)
+        try:
+            max_tokens = int(max_tokens_raw)
+        except (ValueError, TypeError):
+            max_tokens = current_config.max_tokens
+        top_p = settings.get("top_p", current_config.top_p)
         
-        if prompt_path.exists():
-            try:
-                prompt_content = prompt_path.read_text(encoding="utf-8")
-                current_config.system_prompt = prompt_content
-                current_config.prompt_file = prompt_filename
-                
-                await cl.Message(
-                    content=f"✅ **已加载提示词模板**: {prompt_name}\n\n内容长度: {len(prompt_content)} 字符",
-                    author="system",
-                ).send()
-            except Exception as e:
-                await cl.Message(
-                    content=f"❌ **加载提示词失败**: {e}",
-                    author="system",
-                ).send()
-    
-    # === 处理保存新参数预设 ===
-    new_preset_name = settings.get("new_preset_name", "").strip()
-    if new_preset_name:
-        # 创建新预设
-        preset_id = str(uuid.uuid4())[:8]
-        new_preset = UserPreset(
-            id=preset_id,
+        new_scene = UserScene(
+            id=scene_id,
             user_id=user_id,
-            name=new_preset_name,
-            description=f"基于当前配置创建",
-            temperature=settings.get("temperature", current_config.temperature),
-            max_tokens=int(settings.get("max_tokens", current_config.max_tokens)),
-            top_p=settings.get("top_p", current_config.top_p),
+            name=new_scene_name,
+            description="自定义场景",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            system_prompt=current_config.system_prompt,  # 保存当前提示词
         )
         
-        success = await config_storage.create_preset(user_id, new_preset)
+        success = await config_storage.create_preset(user_id, new_scene)
         if success:
             await cl.Message(
-                content=f"✅ **预设已保存**: ⭐ {new_preset_name}\n\n"
-                        f"- Temperature: {new_preset.temperature}\n"
-                        f"- Max Tokens: {new_preset.max_tokens}\n"
-                        f"- Top P: {new_preset.top_p}",
+                content=f"✅ **场景已保存**: ⭐ {new_scene_name}\n\n"
+                        f"📊 参数: T={temperature}, {max_tokens//1000}K, P={top_p}\n"
+                        f"📝 提示词: {len(current_config.system_prompt)} 字符",
                 author="system",
             ).send()
-            
-            # 刷新设置面板以显示新预设
-            user_presets = await config_storage.get_user_presets(user_id)
-            settings_widgets = build_settings_widgets(current_config, user_presets)
-            await cl.ChatSettings(settings_widgets).send()
-        else:
-            await cl.Message(
-                content=f"❌ **保存预设失败**",
-                author="system",
-            ).send()
-        return
-    
-    # === 处理删除预设 ===
-    delete_preset = settings.get("delete_current_preset", False)
-    current_preset = settings.get("preset", current_config.preset)
-    
-    if delete_preset and current_preset.startswith("user:"):
-        preset_id = current_preset[5:]  # 移除 "user:" 前缀
-        success = await config_storage.delete_preset(user_id, preset_id)
-        
-        if success:
-            await cl.Message(
-                content=f"🗑️ **预设已删除**",
-                author="system",
-            ).send()
-            
-            # 重置为默认预设
-            current_config.preset = "default"
-            await config_storage.save_config(user_id, current_config)
-            cl.user_session.set("config", current_config)
             
             # 刷新设置面板
-            user_presets = await config_storage.get_user_presets(user_id)
-            settings_widgets = build_settings_widgets(current_config, user_presets)
+            user_scenes = await config_storage.get_user_presets(user_id)
+            settings_widgets = build_settings_widgets(current_config, user_scenes)
             await cl.ChatSettings(settings_widgets).send()
         else:
+            await cl.Message(content="❌ **保存场景失败**", author="system").send()
+        return
+    
+    # === 处理删除场景 ===
+    delete_scene = settings.get("delete_scene", False)
+    current_scene = settings.get("scene", getattr(current_config, 'scene', 'default'))
+    
+    if delete_scene:
+        if current_scene.startswith("user:"):
+            scene_id = current_scene[5:]  # 移除 "user:" 前缀
+            success = await config_storage.delete_preset(user_id, scene_id)
+            
+            if success:
+                await cl.Message(content="🗑️ **场景已删除**", author="system").send()
+                
+                # 重置为默认场景
+                current_config.scene = "default"
+                current_config.apply_scene("default", all_scenes)
+                await config_storage.save_config(user_id, current_config)
+                cl.user_session.set("config", current_config)
+                
+                # 刷新设置面板
+                user_scenes = await config_storage.get_user_presets(user_id)
+                settings_widgets = build_settings_widgets(current_config, user_scenes)
+                await cl.ChatSettings(settings_widgets).send()
+            else:
+                await cl.Message(content="❌ **删除场景失败**", author="system").send()
+        else:
             await cl.Message(
-                content=f"❌ **删除预设失败**",
+                content="⚠️ **无法删除内置场景**\n\n只有自定义场景（⭐ 开头）可以删除。",
                 author="system",
             ).send()
-        return
-    elif delete_preset:
-        await cl.Message(
-            content=f"⚠️ **无法删除内置预设**\n\n只有自定义预设（⭐ 开头）可以删除。",
-            author="system",
-        ).send()
         return
     
     # === 正常配置更新流程 ===
-    # 转换为新配置
-    new_config = settings_to_config(settings, current_config)
+    new_config = settings_to_config(settings, current_config, all_scenes)
     
     # 验证配置
     errors = new_config.validate()
@@ -1069,10 +927,11 @@ async def on_settings_update(settings: dict):
         ).send()
         return
     
-    # 检查 provider 是否变更（需要更新模型列表）
+    # 检查是否切换了场景或 provider
+    scene_changed = getattr(new_config, 'scene', 'default') != getattr(current_config, 'scene', 'default')
     provider_changed = new_config.provider != current_config.provider
     
-    # 如果 provider 变更，重置模型为该 provider 的第一个
+    # 如果 provider 变更，重置模型
     if provider_changed:
         models = get_models_for_provider(new_config.provider)
         if models:
@@ -1082,10 +941,10 @@ async def on_settings_update(settings: dict):
     await config_storage.save_config(user_id, new_config)
     cl.user_session.set("config", new_config)
     
-    # 如果 provider 变更，需要重新初始化设置面板
-    if provider_changed:
-        user_presets = await config_storage.get_user_presets(user_id)
-        settings_widgets = build_settings_widgets(new_config, user_presets)
+    # 如果 provider 或场景变更，刷新设置面板
+    if provider_changed or scene_changed:
+        user_scenes = await config_storage.get_user_presets(user_id)
+        settings_widgets = build_settings_widgets(new_config, user_scenes)
         await cl.ChatSettings(settings_widgets).send()
     
     # 重新创建 Agent
@@ -1104,14 +963,16 @@ async def on_settings_update(settings: dict):
         # 显示更新成功消息
         provider_name = APIProvider.display_names().get(new_config.provider, new_config.provider)
         
+        # 获取场景名称
+        current_scene_id = getattr(new_config, 'scene', 'default')
+        scene_name = all_scenes.get(current_scene_id, {}).get('name', current_scene_id)
+        
         await cl.Message(
             content=f"✅ **配置已更新**\n\n"
-                    f"- Provider: {provider_name}\n"
-                    f"- 模型: {new_config.get_model_display_name()}\n"
-                    f"- Temperature: {new_config.temperature}\n"
-                    f"- Max Tokens: {new_config.max_tokens}\n"
-                    f"- MCP: {'启用' if new_config.enable_mcp else '禁用'}\n"
-                    f"- 自动审批: {'启用' if new_config.auto_approve else '禁用'}",
+                    f"🎭 场景: {scene_name}\n"
+                    f"📡 Provider: {provider_name}\n"
+                    f"🤖 模型: {new_config.get_model_display_name()}\n"
+                    f"📊 参数: T={new_config.temperature}, {new_config.max_tokens//1000}K, P={new_config.top_p}",
             author="system",
         ).send()
         
@@ -1160,8 +1021,8 @@ async def on_chat_resume(thread: dict):
     cl.user_session.set("config", config)
     
     # 加载用户自定义预设
-    user_presets = await config_storage.get_user_presets(user_id)
-    cl.user_session.set("user_presets", user_presets)
+    user_scenes = await config_storage.get_user_presets(user_id)
+    cl.user_session.set("user_scenes", user_scenes)
     
     # ⭐ 从 thread["steps"] 恢复历史消息（关键修复！）
     message_history = []
@@ -1199,7 +1060,7 @@ async def on_chat_resume(thread: dict):
         cl.user_session.set("thread_id", thread["id"])
         
         # 初始化设置面板（包含用户自定义预设）
-        settings_widgets = build_settings_widgets(config, user_presets)
+        settings_widgets = build_settings_widgets(config, user_scenes)
         await cl.ChatSettings(settings_widgets).send()
         
         await cl.Message(
@@ -1224,14 +1085,14 @@ async def on_chat_start():
     cl.user_session.set("config", config)
     
     # 加载用户自定义预设
-    user_presets = await config_storage.get_user_presets(user_id)
-    cl.user_session.set("user_presets", user_presets)
+    user_scenes = await config_storage.get_user_presets(user_id)
+    cl.user_session.set("user_scenes", user_scenes)
     
     # ⭐ 初始化消息历史（关键：保持对话上下文）
     cl.user_session.set("message_history", [])
     
     # 初始化设置面板（包含用户自定义预设）
-    settings_widgets = build_settings_widgets(config, user_presets)
+    settings_widgets = build_settings_widgets(config, user_scenes)
     await cl.ChatSettings(settings_widgets).send()
     
     # 发送欢迎消息
