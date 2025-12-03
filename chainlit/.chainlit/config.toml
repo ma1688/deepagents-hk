@@ -1,0 +1,48 @@
+[project]
+# 启用 telemetry（可选）
+enable_telemetry = false
+
+# 会话超时时间（秒）
+session_timeout = 3600
+
+# 允许的源（CORS）
+allow_origins = ["*"]
+
+# 缓存 third party 请求
+cache = false
+
+[features]
+# 启用多模态支持
+multi_modal = true
+
+# 安全代码执行
+unsafe_allow_html = false
+
+# 数学公式渲染
+latex = false
+
+# 用户消息自动滚动
+user_message_autoscroll = true
+
+# 允许编辑消息
+edit_message = true
+
+# 文件上传设置
+[features.spontaneous_file_upload]
+enabled = true
+accept = ["application/pdf", "text/plain", "text/markdown", "*/*"]
+max_files = 10
+max_size_mb = 100
+
+[UI]
+# 应用名称
+name = "港股智能分析系统"
+
+# 默认主题
+default_theme = "dark"
+
+# Chain of Thought 显示模式
+cot = "full"
+
+[meta]
+generated_by = "HKEX Agent"

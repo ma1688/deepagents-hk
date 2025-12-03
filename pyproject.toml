@@ -23,11 +23,13 @@ dependencies = [
     "prompt-toolkit>=3.0.52",
     "python-dotenv",
     "markdownify>=0.13.0",
+    "chainlit>=2.9.2",
 ]
 
 
 [project.scripts]
 hkex = "src.cli.main:cli_main"
+hkex-web = "chainlit.run:main"
 
 [project.urls]
 Homepage = "https://docs.langchain.com/oss/python/deepagents/overview"
