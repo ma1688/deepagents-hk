@@ -581,9 +581,6 @@ def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list
     if current_scene not in scene_ids:
         current_scene = 'default'
     
-    # 截取提示词预览
-    prompt_preview = config.system_prompt[:500] + "..." if len(config.system_prompt) > 500 else config.system_prompt
-    
     return [
         # ═══════════════════════════════════════════
         # 第一部分：🔧 API/模型
@@ -629,11 +626,11 @@ def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list
             labels=scene_labels,
         ),
         TextInput(
-            id="system_prompt_preview",
-            label="当前提示词（预览）",
-            description="切换场景后自动更新，可直接编辑",
-            initial=prompt_preview,
-            placeholder="系统提示词内容...",
+            id="system_prompt_edit",
+            label="系统提示词（可编辑）",
+            description="切换场景后自动更新，可直接修改",
+            initial=config.system_prompt,
+            placeholder="输入系统提示词...",
         ),
         TextInput(
             id="new_scene_name",
@@ -749,12 +746,11 @@ def settings_to_config(settings: dict, current_config: UserConfig, all_scenes: d
             scene=new_scene,
         )
     
-    # 处理提示词（如果用户编辑了预览内容）
-    prompt_preview = settings.get("system_prompt_preview", "")
-    # 如果预览内容和当前配置不同（用户进行了编辑），使用预览内容
-    if prompt_preview and prompt_preview != current_config.system_prompt[:500] + "..." and prompt_preview != current_config.system_prompt:
-        # 用户编辑了提示词
-        new_system_prompt = prompt_preview
+    # 处理提示词（用户可能编辑了内容）
+    edited_prompt = settings.get("system_prompt_edit", "")
+    # 如果用户编辑了提示词，使用编辑后的内容
+    if edited_prompt and edited_prompt != current_config.system_prompt:
+        new_system_prompt = edited_prompt
     else:
         new_system_prompt = current_config.system_prompt
     
@@ -886,10 +882,10 @@ async def on_settings_update(settings: dict):
             max_tokens = current_config.max_tokens
         top_p = settings.get("top_p", current_config.top_p)
         
-        # 获取提示词（优先使用编辑后的预览内容）
-        prompt_preview = settings.get("system_prompt_preview", "")
-        if prompt_preview and prompt_preview != current_config.system_prompt[:500] + "...":
-            save_prompt = prompt_preview
+        # 获取提示词（优先使用编辑后的内容）
+        edited_prompt = settings.get("system_prompt_edit", "")
+        if edited_prompt:
+            save_prompt = edited_prompt
         else:
             save_prompt = current_config.system_prompt
         
