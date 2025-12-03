@@ -6,11 +6,16 @@ HKEX Agent - Chainlit Web Interface
 """
 
 import json
+import logging
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 # 获取项目根目录
 project_root = Path(__file__).parent.parent.resolve()
@@ -56,7 +61,7 @@ config_storage = get_config_storage(DB_PATH)
 
 
 # ============== 文件下载功能 ==============
-async def check_and_send_file_download(tool_output: str, tool_name: str) -> None:
+async def check_and_send_file_download(tool_output: str, tool_name: str, config: "UserConfig" = None) -> None:
     """检测工具输出中的文件路径并提供下载链接。
     
     支持的文件类型：
@@ -64,21 +69,40 @@ async def check_and_send_file_download(tool_output: str, tool_name: str) -> None
     - PDF (.pdf)
     - JSON (.json)
     - 文本 (.txt)
+    
+    Args:
+        tool_output: 工具输出内容
+        tool_name: 工具名称
+        config: 用户配置，用于检查是否启用下载链接
     """
+    # 检查是否启用下载链接
+    if config and not getattr(config, 'show_download_links', True):
+        return
+    
     # 匹配常见文件路径模式
     # 支持 /md/xxx.md, /pdf_cache/xxx.pdf, ./xxx.md 等格式
     file_patterns = [
-        r'(/md/[^\s\'"]+\.md)',  # /md/ 目录下的 markdown
-        r'(/pdf_cache/[^\s\'"]+\.(?:pdf|txt|json))',  # pdf_cache 目录
-        r'(\.?/[\w\-/]+\.(?:md|pdf|txt|json))',  # 相对路径
-        r'([A-Za-z]:\\[^\s\'"]+\.(?:md|pdf|txt|json))',  # Windows 绝对路径
-        r'(/[^\s\'"]+\.(?:md|pdf|txt|json))',  # Unix 绝对路径
+        r'(/md/[^\s\'"`,]+\.md)',  # /md/ 目录下的 markdown
+        r'(/pdf_cache/[^\s\'"`,]+\.(?:pdf|txt|json))',  # pdf_cache 目录
+        r'(\.?/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json))',  # 相对路径（支持中文）
+        r'([A-Za-z]:\\[^\s\'"`,]+\.(?:md|pdf|txt|json))',  # Windows 绝对路径
+        r'(/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json))',  # Unix 绝对路径（支持中文）
     ]
     
     found_files = set()
     for pattern in file_patterns:
         matches = re.findall(pattern, tool_output)
         found_files.update(matches)
+    
+    # 如果没有找到文件，尝试更宽松的匹配
+    if not found_files:
+        # 匹配任何以 .md, .pdf, .txt, .json 结尾的路径
+        loose_pattern = r'([^\s\'"`,]+\.(?:md|pdf|txt|json))'
+        matches = re.findall(loose_pattern, tool_output)
+        for match in matches:
+            # 过滤掉明显不是路径的匹配
+            if '/' in match or '\\' in match or match.startswith('.'):
+                found_files.add(match)
     
     for file_path in found_files:
         # 转换虚拟路径到实际路径
@@ -103,15 +127,6 @@ async def check_and_send_file_download(tool_output: str, tool_name: str) -> None
                 # 创建 Chainlit 文件元素
                 file_name = actual_path.name
                 
-                # 根据文件类型设置 MIME 类型
-                mime_types = {
-                    '.md': 'text/markdown',
-                    '.pdf': 'application/pdf',
-                    '.json': 'application/json',
-                    '.txt': 'text/plain',
-                }
-                mime_type = mime_types.get(actual_path.suffix.lower(), 'application/octet-stream')
-                
                 # 发送文件下载链接
                 elements = [
                     cl.File(
@@ -127,7 +142,25 @@ async def check_and_send_file_download(tool_output: str, tool_name: str) -> None
                 ).send()
                 
             except Exception as e:
-                print(f"[WARN] Failed to create download link for {actual_path}: {e}")
+                logger.warning(f"Failed to create download link for {actual_path}: {e}")
+
+
+# ============== 聊天记录分享功能 ==============
+@cl.on_shared_thread_view
+async def on_shared_thread_view(thread: dict, current_user: cl.User | None) -> bool:
+    """处理共享聊天记录的访问请求。
+    
+    允许所有用户查看共享的聊天记录。
+    
+    Args:
+        thread: 被分享的聊天线程
+        current_user: 当前查看的用户（可能为 None，表示匿名用户）
+        
+    Returns:
+        True 表示允许查看，False 表示拒绝
+    """
+    # 允许所有用户查看共享的聊天记录
+    return True
 
 
 @cl.data_layer
@@ -141,27 +174,44 @@ def get_data_layer():
 
 # ============== 简单用户认证 ==============
 @cl.password_auth_callback
-def auth_callback(username: str, password: str):
+async def auth_callback(username: str, password: str):
     """
     简单密码认证。
     
     默认用户：
     - 用户名: admin, 密码: admin (管理员)
     - 用户名: user, 密码: user (普通用户)
+    
+    注意：必须返回 PersistedUser 才能正确关联用户到对话（用于分享功能）。
     """
-    # 简单用户验证
+    from chainlit.data import get_data_layer
+    
+    # 验证用户凭据
     if (username, password) == ("admin", "admin"):
-        return cl.User(
+        user = cl.User(
             identifier="admin", 
             metadata={"role": "ADMIN", "provider": "credentials"}
         )
     elif (username, password) == ("user", "user"):
-        return cl.User(
+        user = cl.User(
             identifier="user", 
             metadata={"role": "USER", "provider": "credentials"}
         )
     else:
         return None
+    
+    # 使用数据层创建或获取 PersistedUser，以便正确关联用户到对话
+    data_layer = get_data_layer()
+    if data_layer:
+        try:
+            persisted_user = await data_layer.create_user(user)
+            if persisted_user:
+                return persisted_user
+        except Exception as e:
+            logger.warning(f"Failed to persist user: {e}")
+    
+    # 如果数据层不可用，返回普通用户（分享功能可能不可用）
+    return user
 
 
 # ============== 配置辅助函数 ==============
@@ -309,6 +359,12 @@ def build_settings_widgets(config: UserConfig) -> list:
             description="自动执行所有工具调用（关闭后需手动审批危险操作）",
             initial=config.auto_approve,
         ),
+        Switch(
+            id="show_download_links",
+            label="显示下载链接",
+            description="自动检测生成的文件并提供下载链接",
+            initial=config.show_download_links,
+        ),
         TextInput(
             id="system_prompt",
             label="系统提示词",
@@ -355,6 +411,7 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
             system_prompt=settings.get("system_prompt", current_config.system_prompt),
             enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
             auto_approve=settings.get("auto_approve", current_config.auto_approve),
+            show_download_links=settings.get("show_download_links", current_config.show_download_links),
             preset=new_preset,
         )
     
@@ -371,6 +428,7 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
         system_prompt=settings.get("system_prompt", current_config.system_prompt),
         enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
         auto_approve=settings.get("auto_approve", current_config.auto_approve),
+        show_download_links=settings.get("show_download_links", current_config.show_download_links),
         preset=new_preset,
     )
 
@@ -577,7 +635,7 @@ async def on_chat_start():
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    """处理用户消息，支持工具调用步骤显示。"""
+    """处理用户消息，支持工具调用步骤显示和文件上传。"""
     agent = cl.user_session.get("agent")
     thread_id = cl.user_session.get("thread_id")
 
@@ -587,11 +645,70 @@ async def on_message(message: cl.Message):
         ).send()
         return
 
+    # 处理 /upload 命令 - 主动请求文件上传
+    if message.content.strip().lower() in ["/upload", "/上传", "上传文件"]:
+        files = await cl.AskFileMessage(
+            content="请上传 PDF 文件进行分析：",
+            accept=["application/pdf"],
+            max_size_mb=100,
+            max_files=5,
+            timeout=180,
+        ).send()
+        
+        if files:
+            uploaded_files_info = []
+            for file in files:
+                # 复制到 pdf_cache 目录
+                cache_dir = project_root / "pdf_cache" / "uploads"
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                dest_path = cache_dir / file.name
+                shutil.copy2(file.path, dest_path)
+                uploaded_files_info.append(f"✅ `{file.name}` -> `{dest_path}`")
+            
+            await cl.Message(
+                content=f"📎 **文件上传成功**\n\n" + "\n".join(uploaded_files_info) + 
+                        "\n\n现在您可以要求我分析这些文件。"
+            ).send()
+        else:
+            await cl.Message(content="❌ 未收到文件").send()
+        return
+
+    # 处理上传的文件附件（通过拖拽或点击附件按钮）
+    uploaded_files_info = []
+    
+    if message.elements:
+        for element in message.elements:
+            # 获取文件信息
+            file_path = getattr(element, 'path', None)
+            file_name = getattr(element, 'name', None)
+            file_mime = getattr(element, 'mime', None)
+            
+            if file_path and file_name:
+                # 如果是 PDF，复制到 pdf_cache 目录
+                if file_mime == 'application/pdf' or (file_name and file_name.lower().endswith('.pdf')):
+                    cache_dir = project_root / "pdf_cache" / "uploads"
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    dest_path = cache_dir / file_name
+                    
+                    if Path(file_path).exists():
+                        shutil.copy2(file_path, dest_path)
+                        uploaded_files_info.append(f"已上传 PDF: {dest_path}")
+                else:
+                    # 其他文件类型
+                    uploaded_files_info.append(f"已上传文件: {file_name} ({file_mime})")
+    
+    # 构建消息内容（包含上传文件信息）
+    user_content = message.content
+    if uploaded_files_info:
+        files_summary = "\n".join(uploaded_files_info)
+        user_content = f"{message.content}\n\n[用户上传的文件]\n{files_summary}"
+        await cl.Message(content=f"📎 {files_summary}").send()
+
     # 获取并更新消息历史
     message_history = cl.user_session.get("message_history", [])
     
     # 添加当前用户消息到历史
-    current_message = HumanMessage(content=message.content)
+    current_message = HumanMessage(content=user_content)
     message_history.append(current_message)
 
     # 配置
@@ -611,20 +728,15 @@ async def on_message(message: cl.Message):
     try:
         # 流式处理 Agent 响应
         full_response = ""
-        print(f"[DEBUG] Starting astream with {len(message_history)} messages")
 
         # 单流模式：messages 获取流式消息
-        event_count = 0
         async for event in agent.astream(
             {"messages": message_history},
             config=config,
             stream_mode="messages",
         ):
-            event_count += 1
             msg, metadata = event
             node = metadata.get("langgraph_node", "")
-            if event_count <= 5:
-                print(f"[DEBUG] Event #{event_count}: node={node}, type={type(msg).__name__}")
             
             # 1. 检测工具调用 - 支持 tool_calls 和 tool_call_chunks
             # AIMessage 使用 tool_calls，AIMessageChunk 使用 tool_call_chunks
@@ -656,13 +768,11 @@ async def on_message(message: cl.Message):
                         "args": tool_args if isinstance(tool_args, dict) else {},
                         "step": None,
                     }
-                    print(f"[DEBUG] Registered tool: {tool_name} with id={tool_id}")
 
             # 2. 检测工具执行结果 --> 创建并完成 Step
             if hasattr(msg, 'type') and msg.type == "tool":
                 tool_id = getattr(msg, 'tool_call_id', None)
                 tool_name = getattr(msg, 'name', 'unknown')
-                print(f"[DEBUG] Tool result: id={tool_id}, name={tool_name}, content={str(msg.content)[:100]}")
                 
                 # 获取工具调用信息
                 tool_info = active_steps.get(tool_id, {})
@@ -687,7 +797,8 @@ async def on_message(message: cl.Message):
                 await step.send()
                 
                 # 检测生成的文件并提供下载链接
-                await check_and_send_file_download(content, display_name)
+                user_config = cl.user_session.get("config")
+                await check_and_send_file_download(content, display_name, user_config)
                 
                 # 清理
                 if tool_id in active_steps:

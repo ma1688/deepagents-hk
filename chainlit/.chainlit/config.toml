@@ -30,12 +30,16 @@ user_message_autoscroll = true
 # 允许编辑消息
 edit_message = true
 
+# 允许分享对话（需要 on_shared_thread_view 回调）
+allow_thread_sharing = true
+
 # 文件上传设置
 [features.spontaneous_file_upload]
 enabled = true
-accept = ["application/pdf", "text/plain", "text/markdown", "*/*"]
-max_files = 10
-max_size_mb = 100
+# 明确指定支持的文件类型
+accept = ["application/pdf", "text/plain", "text/markdown", "text/csv", "application/json", "image/*"]
+max_files = 20
+max_size_mb = 500
 
 [UI]
 # 应用名称

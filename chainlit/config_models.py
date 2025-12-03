@@ -146,6 +146,7 @@ class UserConfig:
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     enable_mcp: bool = False
     auto_approve: bool = True  # 自动审批工具调用（Chainlit 默认开启）
+    show_download_links: bool = True  # 显示生成文件的下载链接
     
     # 预设 (用于快速切换)
     preset: str = "default"
