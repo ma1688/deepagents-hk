@@ -44,7 +44,9 @@ def sanitize_filename(filename: str, max_bytes: int = 200) -> str:
     # Need to truncate - split into name and extension
     name, ext = os.path.splitext(filename)
     ext_bytes = ext.encode("utf-8")
-    suffix = "..."
+    # Use Unicode ellipsis (U+2026) instead of "..." to avoid triggering
+    # path traversal checks that look for ".." in paths
+    suffix = "…"
     suffix_bytes = suffix.encode("utf-8")
     
     # Calculate max bytes for name part
