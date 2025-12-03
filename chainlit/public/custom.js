@@ -1,6 +1,6 @@
 // 自定义脚本 - 在登录页面添加注册链接
 (function() {
-    console.log('[CustomJS] 加载注册链接脚本');
+    console.log('[CustomJS] 加载自定义脚本');
     
     function addRegisterLink() {
         // 查找登录按钮

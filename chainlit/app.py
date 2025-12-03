@@ -85,6 +85,7 @@ async def check_and_send_file_download(tool_output: str, tool_name: str, config:
     支持的文件类型：
     - Markdown (.md)
     - PDF (.pdf)
+    - Excel (.xlsx, .xls)
     - JSON (.json)
     - 文本 (.txt)
     
@@ -98,13 +99,13 @@ async def check_and_send_file_download(tool_output: str, tool_name: str, config:
         return
     
     # 匹配常见文件路径模式
-    # 支持 /md/xxx.md, /pdf_cache/xxx.pdf, ./xxx.md 等格式
+    # 支持 /md/xxx.md, /pdf_cache/xxx.pdf, ./xxx.xlsx 等格式
     file_patterns = [
         r'(/md/[^\s\'"`,]+\.md)',  # /md/ 目录下的 markdown
-        r'(/pdf_cache/[^\s\'"`,]+\.(?:pdf|txt|json))',  # pdf_cache 目录
-        r'(\.?/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json))',  # 相对路径（支持中文）
-        r'([A-Za-z]:\\[^\s\'"`,]+\.(?:md|pdf|txt|json))',  # Windows 绝对路径
-        r'(/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json))',  # Unix 绝对路径（支持中文）
+        r'(/pdf_cache/[^\s\'"`,]+\.(?:pdf|txt|json|xlsx|xls))',  # pdf_cache 目录
+        r'(\.?/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json|xlsx|xls))',  # 相对路径（支持中文）
+        r'([A-Za-z]:\\[^\s\'"`,]+\.(?:md|pdf|txt|json|xlsx|xls))',  # Windows 绝对路径
+        r'(/[\w\-/\u4e00-\u9fff]+\.(?:md|pdf|txt|json|xlsx|xls))',  # Unix 绝对路径（支持中文）
     ]
     
     found_files = set()
@@ -114,8 +115,8 @@ async def check_and_send_file_download(tool_output: str, tool_name: str, config:
     
     # 如果没有找到文件，尝试更宽松的匹配
     if not found_files:
-        # 匹配任何以 .md, .pdf, .txt, .json 结尾的路径
-        loose_pattern = r'([^\s\'"`,]+\.(?:md|pdf|txt|json))'
+        # 匹配任何以 .md, .pdf, .txt, .json, .xlsx, .xls 结尾的路径
+        loose_pattern = r'([^\s\'"`,]+\.(?:md|pdf|txt|json|xlsx|xls))'
         matches = re.findall(loose_pattern, tool_output)
         for match in matches:
             # 过滤掉明显不是路径的匹配
@@ -527,6 +528,27 @@ def create_model_from_config(config: UserConfig):
             # Anthropic 不支持 top_p 等参数
         )
     
+    elif config.provider == APIProvider.OPENROUTER.value:
+        api_key = config.api_key_override or os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("未配置 OpenRouter API Key")
+        
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=effective_model,
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+            top_p=config.top_p,
+            frequency_penalty=config.frequency_penalty,
+            presence_penalty=config.presence_penalty,
+            default_headers={
+                "HTTP-Referer": "https://github.com/deepagents-hk",
+                "X-Title": "HKEX Agent",
+            },
+        )
+    
     else:
         raise ValueError(f"不支持的 API Provider: {config.provider}")
 
@@ -547,17 +569,16 @@ def get_all_scenes(user_scenes: list = None) -> dict:
     return all_scenes
 
 
-def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list:
-    """构建设置面板组件 - 三栏布局.
+def build_settings_widgets(config: UserConfig) -> list:
+    """构建设置面板组件 - 简洁布局.
     
     分为三部分：
     1. API/模型 - 选择Provider和模型
-    2. 提示词 - 场景模式和提示词管理
+    2. 提示词 - 系统提示词编辑
     3. 参数 - 模型参数调节
     
     Args:
         config: 当前用户配置
-        user_scenes: 用户自定义场景列表
         
     Returns:
         Chainlit 输入组件列表
@@ -565,21 +586,6 @@ def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list
     # 获取当前 provider 的模型列表
     models = get_models_for_provider(config.provider)
     model_options = [m["id"] for m in models]
-    model_labels = {m["id"]: f"{m['name']} ({m['context']})" for m in models}
-    
-    # === 构建场景选项 ===
-    all_scenes = get_all_scenes(user_scenes)
-    scene_ids = list(all_scenes.keys())
-    scene_labels = {}
-    for sid, sdata in all_scenes.items():
-        name = sdata.get("name", sid)
-        desc = sdata.get("description", "")
-        scene_labels[sid] = f"{name} - {desc}" if desc else name
-    
-    # 当前场景
-    current_scene = getattr(config, 'scene', 'default')
-    if current_scene not in scene_ids:
-        current_scene = 'default'
     
     return [
         # ═══════════════════════════════════════════
@@ -604,7 +610,7 @@ def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list
             label="自定义模型",
             description="填写后优先使用此模型（可选）",
             initial=config.custom_model or "",
-            placeholder="例如: Pro/deepseek-ai/DeepSeek-V3",
+            placeholder="例如: anthropic/claude-sonnet-4",
         ),
         TextInput(
             id="api_key_override",
@@ -617,33 +623,12 @@ def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list
         # ═══════════════════════════════════════════
         # 第二部分：📝 提示词
         # ═══════════════════════════════════════════
-        Select(
-            id="scene",
-            label="📝 提示词场景",
-            description="选择场景自动加载对应提示词和推荐参数",
-            values=scene_ids,
-            initial_value=current_scene,
-            labels=scene_labels,
-        ),
         TextInput(
             id="system_prompt_edit",
-            label="系统提示词（可编辑）",
-            description="切换场景后自动更新，可直接修改",
+            label="📝 系统提示词",
+            description="定义 AI 角色和行为",
             initial=config.system_prompt,
             placeholder="输入系统提示词...",
-        ),
-        TextInput(
-            id="new_scene_name",
-            label="💾 保存为新场景",
-            description="输入名称保存当前配置（提示词+参数）",
-            initial="",
-            placeholder="场景名称...",
-        ),
-        Switch(
-            id="delete_scene",
-            label="🗑️ 删除当前场景",
-            description="仅可删除自定义场景",
-            initial=False,
         ),
         
         # ═══════════════════════════════════════════
@@ -699,13 +684,12 @@ def build_settings_widgets(config: UserConfig, user_scenes: list = None) -> list
     ]
 
 
-def settings_to_config(settings: dict, current_config: UserConfig, all_scenes: dict = None) -> UserConfig:
+def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig:
     """将设置面板值转换为配置对象.
     
     Args:
         settings: 设置面板返回的字典
         current_config: 当前配置
-        all_scenes: 所有场景（内置+自定义）
         
     Returns:
         更新后的 UserConfig 对象
@@ -715,11 +699,6 @@ def settings_to_config(settings: dict, current_config: UserConfig, all_scenes: d
     if custom_model:
         custom_model = custom_model.strip() or None
     
-    # 获取场景信息
-    scenes = all_scenes or BUILTIN_SCENES
-    new_scene = settings.get("scene", getattr(current_config, 'scene', 'default'))
-    current_scene = getattr(current_config, 'scene', 'default')
-    
     # 处理 max_tokens
     max_tokens_raw = settings.get("max_tokens", current_config.max_tokens)
     try:
@@ -727,34 +706,10 @@ def settings_to_config(settings: dict, current_config: UserConfig, all_scenes: d
     except (ValueError, TypeError):
         max_tokens = current_config.max_tokens
     
-    # 检查是否切换了场景
-    if new_scene != current_scene and new_scene in scenes:
-        # 应用场景配置（参数+提示词）
-        scene = scenes[new_scene]
-        return UserConfig(
-            provider=settings.get("provider", current_config.provider),
-            model=settings.get("model", current_config.model),
-            custom_model=custom_model,
-            api_key_override=settings.get("api_key_override") or None,
-            temperature=scene["temperature"],
-            max_tokens=scene["max_tokens"],
-            top_p=scene["top_p"],
-            system_prompt=scene.get("system_prompt", current_config.system_prompt),
-            enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
-            auto_approve=settings.get("auto_approve", current_config.auto_approve),
-            show_download_links=current_config.show_download_links,
-            scene=new_scene,
-        )
-    
-    # 处理提示词（用户可能编辑了内容）
+    # 处理提示词
     edited_prompt = settings.get("system_prompt_edit", "")
-    # 如果用户编辑了提示词，使用编辑后的内容
-    if edited_prompt and edited_prompt != current_config.system_prompt:
-        new_system_prompt = edited_prompt
-    else:
-        new_system_prompt = current_config.system_prompt
+    new_system_prompt = edited_prompt if edited_prompt else current_config.system_prompt
     
-    # 正常更新（未切换场景）
     return UserConfig(
         provider=settings.get("provider", current_config.provider),
         model=settings.get("model", current_config.model),
@@ -767,7 +722,6 @@ def settings_to_config(settings: dict, current_config: UserConfig, all_scenes: d
         enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
         auto_approve=settings.get("auto_approve", current_config.auto_approve),
         show_download_links=current_config.show_download_links,
-        scene=new_scene,
     )
 
 
@@ -849,107 +803,18 @@ async def on_test_connection(action: cl.Action):
 # ============== 设置更新处理 ==============
 @cl.on_settings_update
 async def on_settings_update(settings: dict):
-    """处理设置更新 - 场景模式.
+    """处理设置更新.
     
     当用户在设置面板中修改配置时触发。
-    支持：
-    - 切换场景（一键应用参数+提示词）
-    - 保存新场景
-    - 删除自定义场景
     """
-    import uuid
-    
     user = cl.user_session.get("user")
     user_id = user.identifier if user else "anonymous"
     
-    # 获取当前配置和用户场景
+    # 获取当前配置
     current_config = cl.user_session.get("config") or get_default_config()
-    user_scenes = await config_storage.get_user_presets(user_id)
-    all_scenes = get_all_scenes(user_scenes)
     
-    # === 处理保存新场景 ===
-    new_scene_name = settings.get("new_scene_name", "").strip()
-    if new_scene_name:
-        # 创建新场景（包含当前所有配置）
-        scene_id = str(uuid.uuid4())[:8]
-        
-        # 获取当前参数值
-        temperature = settings.get("temperature", current_config.temperature)
-        max_tokens_raw = settings.get("max_tokens", current_config.max_tokens)
-        try:
-            max_tokens = int(max_tokens_raw)
-        except (ValueError, TypeError):
-            max_tokens = current_config.max_tokens
-        top_p = settings.get("top_p", current_config.top_p)
-        
-        # 获取提示词（优先使用编辑后的内容）
-        edited_prompt = settings.get("system_prompt_edit", "")
-        if edited_prompt:
-            save_prompt = edited_prompt
-        else:
-            save_prompt = current_config.system_prompt
-        
-        new_scene = UserScene(
-            id=scene_id,
-            user_id=user_id,
-            name=new_scene_name,
-            description="自定义场景",
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            system_prompt=save_prompt,
-        )
-        
-        success = await config_storage.create_preset(user_id, new_scene)
-        if success:
-            await cl.Message(
-                content=f"✅ **场景已保存**: ⭐ {new_scene_name}\n\n"
-                        f"📊 参数: T={temperature}, {max_tokens//1000}K, P={top_p}\n"
-                        f"📝 提示词: {len(save_prompt)} 字符",
-                author="system",
-            ).send()
-            
-            # 刷新设置面板
-            user_scenes = await config_storage.get_user_presets(user_id)
-            settings_widgets = build_settings_widgets(current_config, user_scenes)
-            await cl.ChatSettings(settings_widgets).send()
-        else:
-            await cl.Message(content="❌ **保存场景失败**", author="system").send()
-        return
-    
-    # === 处理删除场景 ===
-    delete_scene = settings.get("delete_scene", False)
-    current_scene = settings.get("scene", getattr(current_config, 'scene', 'default'))
-    
-    if delete_scene:
-        if current_scene.startswith("user:"):
-            scene_id = current_scene[5:]  # 移除 "user:" 前缀
-            success = await config_storage.delete_preset(user_id, scene_id)
-            
-            if success:
-                await cl.Message(content="🗑️ **场景已删除**", author="system").send()
-                
-                # 重置为默认场景
-                current_config.scene = "default"
-                current_config.apply_scene("default", all_scenes)
-                await config_storage.save_config(user_id, current_config)
-                cl.user_session.set("config", current_config)
-                
-                # 刷新设置面板
-                user_scenes = await config_storage.get_user_presets(user_id)
-                settings_widgets = build_settings_widgets(current_config, user_scenes)
-                await cl.ChatSettings(settings_widgets).send()
-            else:
-                await cl.Message(content="❌ **删除场景失败**", author="system").send()
-        else:
-            await cl.Message(
-                content="⚠️ **无法删除内置场景**\n\n只有自定义场景（⭐ 开头）可以删除。",
-                author="system",
-            ).send()
-        return
-    
-    # === 正常配置更新流程 ===
-    new_config = settings_to_config(settings, current_config, all_scenes)
+    # 转换设置为配置
+    new_config = settings_to_config(settings, current_config)
     
     # 验证配置
     errors = new_config.validate()
@@ -960,8 +825,7 @@ async def on_settings_update(settings: dict):
         ).send()
         return
     
-    # 检查是否切换了场景或 provider
-    scene_changed = getattr(new_config, 'scene', 'default') != getattr(current_config, 'scene', 'default')
+    # 检查 provider 是否变更
     provider_changed = new_config.provider != current_config.provider
     
     # 如果 provider 变更，重置模型
@@ -974,10 +838,9 @@ async def on_settings_update(settings: dict):
     await config_storage.save_config(user_id, new_config)
     cl.user_session.set("config", new_config)
     
-    # 如果 provider 或场景变更，刷新设置面板
-    if provider_changed or scene_changed:
-        user_scenes = await config_storage.get_user_presets(user_id)
-        settings_widgets = build_settings_widgets(new_config, user_scenes)
+    # 如果 provider 变更，刷新设置面板
+    if provider_changed:
+        settings_widgets = build_settings_widgets(new_config)
         await cl.ChatSettings(settings_widgets).send()
     
     # 重新创建 Agent
@@ -996,13 +859,8 @@ async def on_settings_update(settings: dict):
         # 显示更新成功消息
         provider_name = APIProvider.display_names().get(new_config.provider, new_config.provider)
         
-        # 获取场景名称
-        current_scene_id = getattr(new_config, 'scene', 'default')
-        scene_name = all_scenes.get(current_scene_id, {}).get('name', current_scene_id)
-        
         await cl.Message(
             content=f"✅ **配置已更新**\n\n"
-                    f"🎭 场景: {scene_name}\n"
                     f"📡 Provider: {provider_name}\n"
                     f"🤖 模型: {new_config.get_model_display_name()}\n"
                     f"📊 参数: T={new_config.temperature}, {new_config.max_tokens//1000}K, P={new_config.top_p}",
@@ -1053,10 +911,6 @@ async def on_chat_resume(thread: dict):
     config = await config_storage.load_or_default(user_id)
     cl.user_session.set("config", config)
     
-    # 加载用户自定义预设
-    user_scenes = await config_storage.get_user_presets(user_id)
-    cl.user_session.set("user_scenes", user_scenes)
-    
     # ⭐ 从 thread["steps"] 恢复历史消息（关键修复！）
     message_history = []
     for step in thread.get("steps", []):
@@ -1092,8 +946,8 @@ async def on_chat_resume(thread: dict):
         cl.user_session.set("agent", agent)
         cl.user_session.set("thread_id", thread["id"])
         
-        # 初始化设置面板（包含用户自定义预设）
-        settings_widgets = build_settings_widgets(config, user_scenes)
+        # 初始化设置面板
+        settings_widgets = build_settings_widgets(config)
         await cl.ChatSettings(settings_widgets).send()
         
         await cl.Message(
@@ -1117,15 +971,11 @@ async def on_chat_start():
     config = await config_storage.load_or_default(user_id)
     cl.user_session.set("config", config)
     
-    # 加载用户自定义预设
-    user_scenes = await config_storage.get_user_presets(user_id)
-    cl.user_session.set("user_scenes", user_scenes)
-    
     # ⭐ 初始化消息历史（关键：保持对话上下文）
     cl.user_session.set("message_history", [])
     
-    # 初始化设置面板（包含用户自定义预设）
-    settings_widgets = build_settings_widgets(config, user_scenes)
+    # 初始化设置面板
+    settings_widgets = build_settings_widgets(config)
     await cl.ChatSettings(settings_widgets).send()
     
     # 发送欢迎消息
@@ -1134,11 +984,11 @@ async def on_chat_start():
         content="🏛️ **港股智能分析系统** 已就绪！\n\n"
                 "我可以帮助您：\n"
                 "- 📰 搜索和分析港交所公告\n"
-                "- 📄 解析 PDF 文档\n"
+                "- 📄 解析 PDF / Excel 文档\n"
                 "- 📊 生成分析报告\n"
                 "- 💹 查询股票信息\n\n"
                 f"当前配置：**{provider_name}** / **{config.get_model_display_name()}**\n\n"
-                "💡 点击右上角 ⚙️ 图标可修改模型和参数设置。"
+                "💡 点击底部 ⚙️ 图标可修改设置，拖拽或点击 📎 上传文件。"
     ).send()
 
     # 创建模型
@@ -1189,8 +1039,8 @@ async def on_message(message: cl.Message):
     # 处理 /upload 命令 - 主动请求文件上传
     if message.content.strip().lower() in ["/upload", "/上传", "上传文件"]:
         files = await cl.AskFileMessage(
-            content="请上传 PDF 文件进行分析：",
-            accept=["application/pdf"],
+            content="请上传文件进行分析（支持 PDF、Excel）：",
+            accept=["*/*"],  # 接受所有文件类型
             max_size_mb=100,
             max_files=5,
             timeout=180,
@@ -1199,7 +1049,7 @@ async def on_message(message: cl.Message):
         if files:
             uploaded_files_info = []
             for file in files:
-                # 复制到 pdf_cache 目录
+                # 复制到 pdf_cache/uploads 目录
                 cache_dir = project_root / "pdf_cache" / "uploads"
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 dest_path = cache_dir / file.name
@@ -1217,6 +1067,14 @@ async def on_message(message: cl.Message):
     # 处理上传的文件附件（通过拖拽或点击附件按钮）
     uploaded_files_info = []
     
+    # 支持的文件类型
+    SUPPORTED_EXTENSIONS = {'.pdf', '.xlsx', '.xls'}
+    SUPPORTED_MIMES = {
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+    }
+    
     if message.elements:
         for element in message.elements:
             # 获取文件信息
@@ -1225,15 +1083,18 @@ async def on_message(message: cl.Message):
             file_mime = getattr(element, 'mime', None)
             
             if file_path and file_name:
-                # 如果是 PDF，复制到 pdf_cache 目录
-                if file_mime == 'application/pdf' or (file_name and file_name.lower().endswith('.pdf')):
+                file_ext = Path(file_name).suffix.lower()
+                
+                # 如果是支持的文件类型，复制到 pdf_cache/uploads 目录
+                if file_mime in SUPPORTED_MIMES or file_ext in SUPPORTED_EXTENSIONS:
                     cache_dir = project_root / "pdf_cache" / "uploads"
                     cache_dir.mkdir(parents=True, exist_ok=True)
                     dest_path = cache_dir / file_name
                     
                     if Path(file_path).exists():
                         shutil.copy2(file_path, dest_path)
-                        uploaded_files_info.append(f"已上传 PDF: {dest_path}")
+                        file_type = "Excel" if file_ext in {'.xlsx', '.xls'} else "PDF"
+                        uploaded_files_info.append(f"已上传 {file_type}: {dest_path}")
                 else:
                     # 其他文件类型
                     uploaded_files_info.append(f"已上传文件: {file_name} ({file_mime})")

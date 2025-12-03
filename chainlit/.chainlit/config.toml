@@ -54,5 +54,8 @@ cot = "full"
 # 自定义 JavaScript（添加注册链接到登录页面）
 custom_js = "/public/custom.js"
 
+# 自定义 CSS（隐藏登录页面 Chainlit logo）
+custom_css = "/public/stylesheet.css"
+
 [meta]
 generated_by = "HKEX Agent"

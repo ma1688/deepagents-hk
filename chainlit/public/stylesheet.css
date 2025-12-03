@@ -1,0 +1,9 @@
+/* 自定义样式 - 港股智能分析系统 */
+
+/* 隐藏登录页面右侧的 Chainlit 背景图 */
+.login-background-image,
+[class*="login"] > img:not([alt]),
+.auth-page > div:last-child > img {
+    display: none !important;
+}
+

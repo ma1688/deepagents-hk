@@ -19,6 +19,7 @@ class APIProvider(str, Enum):
     SILICONFLOW = "siliconflow"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    OPENROUTER = "openrouter"
     
     @classmethod
     def choices(cls) -> List[str]:
@@ -32,6 +33,7 @@ class APIProvider(str, Enum):
             cls.SILICONFLOW.value: "SiliconFlow (硅基流动)",
             cls.OPENAI.value: "OpenAI",
             cls.ANTHROPIC.value: "Anthropic (Claude)",
+            cls.OPENROUTER.value: "OpenRouter (多模型聚合)",
         }
 
 
@@ -58,6 +60,9 @@ MODEL_PRESETS: Dict[str, List[Dict[str, str]]] = {
         {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "context": "200K"},
         {"id": "claude-opus-4", "name": "Claude Opus 4", "context": "200K"},
         {"id": "claude-haiku-4", "name": "Claude Haiku 4 (轻量)", "context": "200K"},
+    ],
+    APIProvider.OPENROUTER.value: [
+        {"id": "openrouter/auto", "name": "Auto (自动选择)", "context": "自动"},
     ],
 }
 
