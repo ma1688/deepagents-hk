@@ -7,6 +7,7 @@ HKEX Agent - Chainlit Web Interface
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -52,6 +53,81 @@ storage_client = LocalStorageClient(storage_dir=STORAGE_PATH)
 
 # 初始化配置存储
 config_storage = get_config_storage(DB_PATH)
+
+
+# ============== 文件下载功能 ==============
+async def check_and_send_file_download(tool_output: str, tool_name: str) -> None:
+    """检测工具输出中的文件路径并提供下载链接。
+    
+    支持的文件类型：
+    - Markdown (.md)
+    - PDF (.pdf)
+    - JSON (.json)
+    - 文本 (.txt)
+    """
+    # 匹配常见文件路径模式
+    # 支持 /md/xxx.md, /pdf_cache/xxx.pdf, ./xxx.md 等格式
+    file_patterns = [
+        r'(/md/[^\s\'"]+\.md)',  # /md/ 目录下的 markdown
+        r'(/pdf_cache/[^\s\'"]+\.(?:pdf|txt|json))',  # pdf_cache 目录
+        r'(\.?/[\w\-/]+\.(?:md|pdf|txt|json))',  # 相对路径
+        r'([A-Za-z]:\\[^\s\'"]+\.(?:md|pdf|txt|json))',  # Windows 绝对路径
+        r'(/[^\s\'"]+\.(?:md|pdf|txt|json))',  # Unix 绝对路径
+    ]
+    
+    found_files = set()
+    for pattern in file_patterns:
+        matches = re.findall(pattern, tool_output)
+        found_files.update(matches)
+    
+    for file_path in found_files:
+        # 转换虚拟路径到实际路径
+        if file_path.startswith('/md/'):
+            actual_path = project_root / 'md' / file_path[4:]
+        elif file_path.startswith('/pdf_cache/'):
+            actual_path = project_root / 'pdf_cache' / file_path[11:]
+        elif file_path.startswith('./'):
+            actual_path = project_root / file_path[2:]
+        elif file_path.startswith('/'):
+            # 检查是否是项目内的绝对路径
+            if str(project_root) in file_path:
+                actual_path = Path(file_path)
+            else:
+                actual_path = project_root / file_path[1:]
+        else:
+            actual_path = project_root / file_path
+        
+        # 检查文件是否存在
+        if actual_path.exists() and actual_path.is_file():
+            try:
+                # 创建 Chainlit 文件元素
+                file_name = actual_path.name
+                
+                # 根据文件类型设置 MIME 类型
+                mime_types = {
+                    '.md': 'text/markdown',
+                    '.pdf': 'application/pdf',
+                    '.json': 'application/json',
+                    '.txt': 'text/plain',
+                }
+                mime_type = mime_types.get(actual_path.suffix.lower(), 'application/octet-stream')
+                
+                # 发送文件下载链接
+                elements = [
+                    cl.File(
+                        name=file_name,
+                        path=str(actual_path),
+                        display="inline",
+                    )
+                ]
+                
+                await cl.Message(
+                    content=f"📎 **文件已生成**: `{file_name}`\n\n点击下方链接下载：",
+                    elements=elements,
+                ).send()
+                
+            except Exception as e:
+                print(f"[WARN] Failed to create download link for {actual_path}: {e}")
 
 
 @cl.data_layer
@@ -227,6 +303,12 @@ def build_settings_widgets(config: UserConfig) -> list:
             description="启用 Model Context Protocol 扩展功能",
             initial=config.enable_mcp,
         ),
+        Switch(
+            id="auto_approve",
+            label="自动审批工具调用",
+            description="自动执行所有工具调用（关闭后需手动审批危险操作）",
+            initial=config.auto_approve,
+        ),
         TextInput(
             id="system_prompt",
             label="系统提示词",
@@ -272,6 +354,7 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
             presence_penalty=current_config.presence_penalty,
             system_prompt=settings.get("system_prompt", current_config.system_prompt),
             enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
+            auto_approve=settings.get("auto_approve", current_config.auto_approve),
             preset=new_preset,
         )
     
@@ -287,6 +370,7 @@ def settings_to_config(settings: dict, current_config: UserConfig) -> UserConfig
         presence_penalty=current_config.presence_penalty,
         system_prompt=settings.get("system_prompt", current_config.system_prompt),
         enable_mcp=settings.get("enable_mcp", current_config.enable_mcp),
+        auto_approve=settings.get("auto_approve", current_config.auto_approve),
         preset=new_preset,
     )
 
@@ -343,6 +427,7 @@ async def on_settings_update(settings: dict):
             enable_mcp=new_config.enable_mcp,
             system_prompt=new_config.system_prompt,
             use_checkpointer=False,  # Chainlit has its own persistence
+            enable_hitl=not new_config.auto_approve,  # 自动审批 = 禁用 HITL
         )
         cl.user_session.set("agent", agent)
         
@@ -354,7 +439,8 @@ async def on_settings_update(settings: dict):
                     f"- 模型: {new_config.get_model_display_name()}\n"
                     f"- Temperature: {new_config.temperature}\n"
                     f"- Max Tokens: {new_config.max_tokens}\n"
-                    f"- MCP: {'启用' if new_config.enable_mcp else '禁用'}",
+                    f"- MCP: {'启用' if new_config.enable_mcp else '禁用'}\n"
+                    f"- 自动审批: {'启用' if new_config.auto_approve else '禁用'}",
             author="system",
         ).send()
         
@@ -405,6 +491,7 @@ async def on_chat_resume(thread: dict):
             enable_mcp=config.enable_mcp,
             system_prompt=config.system_prompt,
             use_checkpointer=False,  # Chainlit has its own persistence
+            enable_hitl=not config.auto_approve,  # 自动审批 = 禁用 HITL
         )
         
         cl.user_session.set("agent", agent)
@@ -473,6 +560,7 @@ async def on_chat_start():
             enable_mcp=config.enable_mcp,
             system_prompt=config.system_prompt,
             use_checkpointer=False,  # Chainlit has its own persistence
+            enable_hitl=not config.auto_approve,  # 自动审批 = 禁用 HITL
         )
         # 保存到用户会话
         cl.user_session.set("agent", agent)
@@ -523,54 +611,93 @@ async def on_message(message: cl.Message):
     try:
         # 流式处理 Agent 响应
         full_response = ""
+        print(f"[DEBUG] Starting astream with {len(message_history)} messages")
 
+        # 单流模式：messages 获取流式消息
+        event_count = 0
         async for event in agent.astream(
             {"messages": message_history},
             config=config,
             stream_mode="messages",
         ):
+            event_count += 1
             msg, metadata = event
             node = metadata.get("langgraph_node", "")
-
-            # 1. 检测工具调用开始 --> 创建 Step
+            if event_count <= 5:
+                print(f"[DEBUG] Event #{event_count}: node={node}, type={type(msg).__name__}")
+            
+            # 1. 检测工具调用 - 支持 tool_calls 和 tool_call_chunks
+            # AIMessage 使用 tool_calls，AIMessageChunk 使用 tool_call_chunks
+            tool_calls_list = []
             if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                for tool_call in msg.tool_calls:
-                    # 兼容字典和对象两种格式
+                tool_calls_list = msg.tool_calls
+            elif hasattr(msg, 'tool_call_chunks') and msg.tool_call_chunks:
+                tool_calls_list = msg.tool_call_chunks
+            
+            if tool_calls_list:
+                for tool_call in tool_calls_list:
+                    # 兼容字典格式
                     if isinstance(tool_call, dict):
-                        tool_name = tool_call.get("name", "unknown")
+                        tool_name = tool_call.get("name", "") or ""
                         tool_args = tool_call.get("args", {})
-                        tool_id = tool_call.get("id", tool_name)
+                        tool_id = tool_call.get("id", "")
                     else:
-                        # LangChain ToolCall 对象
-                        tool_name = getattr(tool_call, "name", "unknown")
+                        tool_name = getattr(tool_call, "name", "") or ""
                         tool_args = getattr(tool_call, "args", {})
-                        tool_id = getattr(tool_call, "id", tool_name)
+                        tool_id = getattr(tool_call, "id", "")
+                    
+                    # 跳过空名称或已处理的工具
+                    if not tool_name or tool_id in active_steps:
+                        continue
+                    
+                    # 记录工具调用信息
+                    active_steps[tool_id] = {
+                        "name": tool_name,
+                        "args": tool_args if isinstance(tool_args, dict) else {},
+                        "step": None,
+                    }
+                    print(f"[DEBUG] Registered tool: {tool_name} with id={tool_id}")
 
-                    # 创建可折叠的工具调用卡片
-                    step = cl.Step(name=tool_name, type="tool")
-                    step.input = json.dumps(tool_args, ensure_ascii=False, indent=2)
-                    await step.send()
-                    active_steps[tool_id] = step
-
-            # 2. 检测工具执行结果 --> 更新并关闭 Step
+            # 2. 检测工具执行结果 --> 创建并完成 Step
             if hasattr(msg, 'type') and msg.type == "tool":
                 tool_id = getattr(msg, 'tool_call_id', None)
-                if tool_id and tool_id in active_steps:
-                    step = active_steps[tool_id]
-                    
-                    # 截断过长输出 (> 2000 字符)
-                    content = str(msg.content)
-                    if len(content) > 2000:
-                        step.output = content[:2000] + "\n... [已截断]"
-                    else:
-                        step.output = content
-                    
-                    await step.update()
+                tool_name = getattr(msg, 'name', 'unknown')
+                print(f"[DEBUG] Tool result: id={tool_id}, name={tool_name}, content={str(msg.content)[:100]}")
+                
+                # 获取工具调用信息
+                tool_info = active_steps.get(tool_id, {})
+                if isinstance(tool_info, dict) and "name" in tool_info:
+                    display_name = tool_info.get("name", tool_name)
+                    display_args = tool_info.get("args", {})
+                else:
+                    display_name = tool_name
+                    display_args = {}
+                
+                # 创建并完成 Step（一次性显示输入和输出）
+                step = cl.Step(name=display_name, type="tool")
+                step.input = json.dumps(display_args, ensure_ascii=False, indent=2) if display_args else ""
+                
+                # 截断过长输出
+                content = str(msg.content)
+                if len(content) > 2000:
+                    step.output = content[:2000] + "\n... [已截断]"
+                else:
+                    step.output = content
+                
+                await step.send()
+                
+                # 检测生成的文件并提供下载链接
+                await check_and_send_file_download(content, display_name)
+                
+                # 清理
+                if tool_id in active_steps:
                     del active_steps[tool_id]
 
             # 3. 处理 AI 最终响应
+            # AIMessageChunk 是流式消息块，也需要处理
             if hasattr(msg, 'content') and msg.content:
-                if isinstance(msg, AIMessage) or node in ["agent", "final"]:
+                msg_type = type(msg).__name__
+                if msg_type in ["AIMessage", "AIMessageChunk"] or node in ["agent", "model", "final"]:
                     # 流式输出 token
                     await response_msg.stream_token(msg.content)
                     full_response += msg.content
@@ -589,10 +716,16 @@ async def on_message(message: cl.Message):
         cl.user_session.set("message_history", message_history)
 
     except Exception as e:
+        import traceback
+        print(f"[ERROR] Exception in on_message: {e}")
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        
         # 异常时关闭所有未完成的 Steps
-        for step in active_steps.values():
-            step.output = f"❌ 错误: {str(e)}"
-            await step.update()
+        for tool_info in active_steps.values():
+            if isinstance(tool_info, dict) and tool_info.get("step"):
+                step = tool_info["step"]
+                step.output = f"❌ 错误: {str(e)}"
+                await step.update()
         
         error_msg = f"❌ **处理出错**\n\n```\n{str(e)}\n```"
         response_msg.content = error_msg

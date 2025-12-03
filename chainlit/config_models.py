@@ -95,20 +95,31 @@ CONFIG_PRESETS: Dict[str, Dict[str, Any]] = {
 }
 
 
-# 默认系统提示词
-DEFAULT_SYSTEM_PROMPT = """你是港股智能分析系统 HKEX Agent，专门处理港交所公告分析。
+# 默认系统提示词 - 使用与 CLI 相同的完整提示词
+from src.prompts.prompts import get_main_system_prompt
+
+try:
+    DEFAULT_SYSTEM_PROMPT = get_main_system_prompt()
+except FileNotFoundError:
+    # 回退到简化版本
+    DEFAULT_SYSTEM_PROMPT = """你是港股智能分析系统 HKEX Agent，专门处理港交所公告分析。
 
 核心能力：
 - 搜索和分析港交所公告
 - 解析 PDF 文档（支持繁体中文）
 - 生成结构化分析报告
 - 查询股票基本信息
+- 使用 shell 工具执行系统命令（如 date 获取时间）
 
 分析原则：
 - 保持客观中立，基于事实分析
 - 对配售、供股等重大事项重点关注折让率
 - 输出使用简洁专业的语言
 - 数据呈现优先使用表格格式
+
+时间获取：
+- 使用 shell 工具执行 `date` 命令获取当前系统时间
+- date 命令是安全的只读命令，无需用户审批
 """
 
 
@@ -134,6 +145,7 @@ class UserConfig:
     # 系统设置
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     enable_mcp: bool = False
+    auto_approve: bool = True  # 自动审批工具调用（Chainlit 默认开启）
     
     # 预设 (用于快速切换)
     preset: str = "default"

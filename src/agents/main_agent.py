@@ -47,6 +47,7 @@ async def create_hkex_agent(
         middlewares: list[Any] | None = None,
         system_prompt: str | None = None,
         use_checkpointer: bool = True,
+        enable_hitl: bool = True,
 ) -> Any:
     """Create and configure the main HKEX agent.
 
@@ -57,6 +58,8 @@ async def create_hkex_agent(
         enable_mcp: Enable MCP tools integration (default: False).
         middlewares: Additional middlewares to include (e.g., SkillsMiddleware).
         system_prompt: Custom system prompt (optional, uses default if not provided).
+        enable_hitl: Enable human-in-the-loop approval for tools (default: True).
+                    Set to False for Chainlit to auto-approve all tool calls.
         use_checkpointer: Whether to use MemorySaver checkpointer (default: True).
             Set to False for Chainlit to avoid msgpack serialization issues.
 
@@ -288,6 +291,16 @@ async def create_hkex_agent(
     # Use custom system_prompt if provided, otherwise use default
     final_system_prompt = system_prompt if system_prompt else get_system_prompt()
     
+    # Configure interrupt_on based on enable_hitl flag
+    interrupt_config = None
+    if enable_hitl:
+        interrupt_config = {
+            "shell": shell_interrupt_config,
+            "write_file": write_file_interrupt_config,
+            "edit_file": edit_file_interrupt_config,
+            "download_announcement_pdf": download_pdf_interrupt_config,
+        }
+    
     agent = create_deep_agent(
         model=model,
         system_prompt=final_system_prompt,
@@ -295,12 +308,7 @@ async def create_hkex_agent(
         backend=backend,
         middleware=agent_middleware,  # Only pass our custom middleware, not SubAgentMiddleware
         subagents=subagent_specs,  # Pass subagents to create_deep_agent
-        interrupt_on={
-            "shell": shell_interrupt_config,
-            "write_file": write_file_interrupt_config,
-            "edit_file": edit_file_interrupt_config,
-            "download_announcement_pdf": download_pdf_interrupt_config,
-        },
+        interrupt_on=interrupt_config,  # None = auto-approve all tools
     )
 
     # Set up checkpointer for state persistence (optional)
