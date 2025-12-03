@@ -291,42 +291,30 @@ async def auth_callback(username: str, password: str):
     """
     密码认证回调。
     
-    支持两种认证方式：
-    1. 数据库注册用户 - 通过 auth_service 验证
-    2. 内置默认用户 - admin/admin (管理员), user/user (普通用户)
+    通过数据库验证注册用户，无默认账号。
+    新用户需要通过注册页面创建账号。
     
     注意：必须返回 PersistedUser 才能正确关联用户到对话（用于分享功能）。
     """
     from chainlit.data import get_data_layer
     
-    # 首先尝试从数据库验证用户
+    # 从数据库验证用户
     authenticated_user = auth_service.authenticate_user(username, password)
     
-    if authenticated_user:
-        # 用户验证成功
-        user = cl.User(
-            identifier=authenticated_user["identifier"],
-            metadata={
-                "role": authenticated_user.get("role", "USER"),
-                "provider": "credentials",
-                "email": authenticated_user.get("email"),
-                "display_name": authenticated_user.get("display_name")
-            }
-        )
-    else:
-        # 数据库验证失败，尝试内置默认用户（向后兼容）
-        if (username, password) == ("admin", "admin"):
-            user = cl.User(
-                identifier="admin", 
-                metadata={"role": "ADMIN", "provider": "credentials"}
-            )
-        elif (username, password) == ("user", "user"):
-            user = cl.User(
-                identifier="user", 
-                metadata={"role": "USER", "provider": "credentials"}
-            )
-        else:
-            return None
+    if not authenticated_user:
+        # 验证失败，无默认账号
+        return None
+    
+    # 用户验证成功
+    user = cl.User(
+        identifier=authenticated_user["identifier"],
+        metadata={
+            "role": authenticated_user.get("role", "USER"),
+            "provider": "credentials",
+            "email": authenticated_user.get("email"),
+            "display_name": authenticated_user.get("display_name")
+        }
+    )
     
     # 使用数据层创建或获取 PersistedUser，以便正确关联用户到对话
     data_layer = get_data_layer()

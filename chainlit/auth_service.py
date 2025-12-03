@@ -192,24 +192,7 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
     # 检查密码
     password_hash = user.get("password_hash")
     if not password_hash:
-        # 兼容旧用户（无密码哈希的硬编码用户）
-        # 检查是否是内置管理员账户
-        if username == "admin" and password == "admin":
-            return {
-                "id": user.get("id", "admin"),
-                "identifier": username,
-                "email": user.get("email"),
-                "display_name": user.get("display_name", "管理员"),
-                "role": "ADMIN"
-            }
-        elif username == "user" and password == "user":
-            return {
-                "id": user.get("id", "user"),
-                "identifier": username,
-                "email": user.get("email"),
-                "display_name": user.get("display_name", "用户"),
-                "role": "USER"
-            }
+        # 无密码哈希的用户无法登录，必须通过注册创建账号
         return None
     
     # 验证密码哈希
