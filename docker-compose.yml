@@ -1,0 +1,66 @@
+# HKEX Agent - Docker Compose 配置
+# 港股智能分析系统
+
+services:
+  hkex-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hkex-agent
+    restart: unless-stopped
+    ports:
+      - "${CHAINLIT_PORT:-8000}:8000"
+    
+    # 环境变量配置
+    environment:
+      # LLM Provider (选择一个配置)
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
+      - SILICONFLOW_MODEL=${SILICONFLOW_MODEL:-deepseek-chat}
+      - SILICONFLOW_TEMPERATURE=${SILICONFLOW_TEMPERATURE:-0.7}
+      - SILICONFLOW_MAX_TOKENS=${SILICONFLOW_MAX_TOKENS:-8000}
+      
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-5-20250929}
+      
+      # MCP 集成
+      - ENABLE_MCP=${ENABLE_MCP:-false}
+      - MCP_CONFIG_PATH=/app/mcp_config.json
+      
+      # Chainlit 配置
+      - CHAINLIT_AUTH_SECRET=${CHAINLIT_AUTH_SECRET:-your-secret-key-change-in-production}
+      
+    # 数据持久化
+    volumes:
+      - hkex-data:/app/chainlit_data
+      - hkex-pdf-cache:/app/pdf_cache
+      - hkex-md:/app/md
+      # 可选：挂载自定义 MCP 配置
+      # - ./mcp_config.json:/app/mcp_config.json:ro
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# 数据卷定义
+volumes:
+  hkex-data:
+    name: hkex-agent-data
+  hkex-pdf-cache:
+    name: hkex-agent-pdf-cache
+  hkex-md:
+    name: hkex-agent-md
+

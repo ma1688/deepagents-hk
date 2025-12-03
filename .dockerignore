@@ -1,0 +1,74 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 测试
+tests/
+**/tests/
+coverage/
+.coverage
+htmlcov/
+
+# 文档
+docs/
+*.md
+!README.md
+!chainlit/chainlit.md
+
+# 数据文件（运行时生成）
+chainlit_data/
+pdf_cache/
+md/
+large_tool_results/
+
+# 环境变量（敏感信息）
+.env
+.env.*
+!.env.example
+
+# 其他
+*.log
+*.tmp
+*.bak
+Makefile
+LICENSE
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+

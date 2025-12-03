@@ -152,6 +152,25 @@ chainlit run app.py -w --port 8000
 
 访问 http://localhost:8000 即可使用 Web 界面。
 
+#### Docker 部署 (推荐生产环境)
+
+```bash
+# 1. 复制环境变量配置
+cp docker.env.example .env
+# 编辑 .env 填入 API Key
+
+# 2. 构建并启动
+docker compose up -d
+
+# 3. 查看日志
+docker compose logs -f
+
+# 4. 停止服务
+docker compose down
+```
+
+访问 http://localhost:8000 即可使用。数据持久化到 Docker volumes。
+
 **Web 界面特性**：
 - 🎨 现代化深色主题界面
 - 💬 流式响应，实时显示分析结果
