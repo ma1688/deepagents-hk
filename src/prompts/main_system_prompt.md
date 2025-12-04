@@ -188,8 +188,11 @@ When user requests a summary or asks to "generate summary" or "generate summary 
    - **Key**: Always use `/md/` directory as output_path (e.g., `/md/{stock_code}-{sanitized_title}.md`)
 
 **Example user request**: "Summary of 00328 latest rights issue announcement and generate summary md"
-- **Step 1**: Get current date: `date +%Y%m%d` → system returns "20251204"
-- **Step 2**: Calculate date range: from_date = "20241204" (year-1), to_date = "20251204" (today)
+- **Step 1**: Get dates:
+  ```bash
+  to_date=$(date +%Y%m%d)          # → "20251204"
+  from_date=$(date -v-1y +%Y%m%d)  # → "20241204" (handles leap years!)
+  ```
 - **Step 3**: Search WITHOUT `title` parameter:
   ```
   search_hkex_announcements(stock_code="00328", from_date="20241204", to_date="20251204")
@@ -203,4 +206,3 @@ When user requests a summary or asks to "generate summary" or "generate summary 
 When user requests a summary, always complete the full workflow - don't stop after just searching or downloading.
 
 > **Note**: Human-in-the-Loop (HITL) approval rules are handled by the framework middleware. Cache hits are always instant without approval.
-
