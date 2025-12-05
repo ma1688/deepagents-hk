@@ -4,116 +4,118 @@
 graph TB
     %% 用户接口层
     subgraph "用户接口层"
-        CLI["CLI<br/>(命令行接口)<br/>+ 上下文监控<br/>+ Show Thinking<br/>+ Tool Outputs Toggle"]
-        API["API Client<br/>(Python API)"]
+        CLI["CLI (hkex)<br/>命令行入口 + 快捷键<br/>--show-thinking / Ctrl+O / Ctrl+T"]
+        ContextUI["Context Monitor<br/>Token占用 + 颜色预警"]
+        ProjectUtils["Project Utils<br/>项目检测 (.hkex-agent)<br/>agent_dir 解析"]
+        API["API Client<br/>Python SDK"]
     end
 
     %% 代理层
     subgraph "代理层"
-        MainAgent["Main Agent<br/>(主代理)"]
-        
+        MainAgent["Main Agent<br/>DeepAgents主代理"]
         subgraph "子代理 (Subagents)"
-            PDFAnalyzer["PDF Analyzer<br/>(PDF分析代理)"]
-            ReportGen["Report Generator<br/>(报告生成代理)"]
+            PDFAnalyzer["PDF Analyzer<br/>PDF内容分析"]
+            ReportGen["Report Generator<br/>结构化报告生成"]
         end
-    end
-
-    %% 工具层
-    subgraph "工具层 (Tools)"
-        HKEXTools["HKEX Tools<br/>- search_hkex_announcements<br/>- get_latest_hkex_announcements<br/>- get_stock_info<br/>- get_announcement_categories"]
-        PDFTools["PDF Tools<br/>- download_announcement_pdf<br/>- extract_pdf_content<br/>- analyze_pdf_structure<br/>- get_cached_pdf_path"]
-        SummaryTools["Summary Tools<br/>- generate_summary_markdown"]
-        MCPTools["MCP Tools<br/>(外部MCP服务器工具)<br/>- 可选集成"]
-    end
-
-    %% 服务层
-    subgraph "服务层 (Services)"
-        HKEXService["HKEX API Service<br/>- get_stock_id<br/>- search_announcements<br/>- get_latest_announcements<br/>- get_categories"]
-        PDFService["PDF Parser Service<br/>- download_pdf<br/>- extract_text<br/>- extract_tables<br/>- analyze_structure"]
-    end
-
-    %% 存储层
-    subgraph "存储层 (Backends)"
-        CompositeBackend["Composite Backend<br/>(路由管理器)"]
-        PDFCache["PDF Cache Backend<br/>(/pdf_cache/)<br/>[Virtual Mode]"]
-        Memories["Memories Backend<br/>(/memories/)<br/>[Virtual Mode]<br/>+ 用户级/项目级"]
-        SkillsBackend["Skills Backend<br/>(/skills/)<br/>+ YAML解析<br/>+ 示例技能"]
-        MDBackend["MD Backend<br/>(/md/)<br/>[Virtual Mode]"]
-        DefaultFS["Default Filesystem<br/>(工作目录)<br/>[Virtual Mode ✓ 沙箱化]"]
     end
 
     %% 中间件层
     subgraph "中间件层 (Middleware)"
-        MemoryMW["AgentMemoryMiddleware<br/>(代理记忆中间件)<br/>+ 双范围内存"]
-        SkillsMW["SkillsMiddleware<br/>(技能中间件)<br/>+ 渐进式披露"]
-        ShellMW["ResumableShellToolMiddleware<br/>(Shell工具中间件)"]
-        SubAgentMW["SubAgentMiddleware<br/>(子代理中间件)"]
-        SummarizationMW["SummarizationMiddleware<br/>(自动摘要中间件)"]
+        MemoryMW["AgentMemoryMiddleware<br/>双范围内存注入"]
+        SkillsMW["SkillsMiddleware<br/>渐进式披露"]
+        SubAgentMW["SubAgentMiddleware<br/>子代理编排"]
+        SummarizationMW["SummarizationMiddleware<br/>自动摘要/上下文压缩"]
+        ShellMW["ResumableShellToolMiddleware<br/>Shell命令恢复"]
     end
 
-    %% 外部服务
-    subgraph "外部服务"
-        HKEXAPI["HKEX API<br/>(港交所API)"]
-        LLM["Language Model<br/>(LLM)"]
-        MCPServers["MCP Servers<br/>(外部MCP服务器)<br/>- CCASS分析<br/>- 其他MCP服务"]
+    %% 工具层
+    subgraph "工具层 (Tools)"
+        HKEXTools["HKEX Tools<br/>search/get_latest/get_stock_info/get_categories"]
+        PDFTools["PDF Tools<br/>download/extract/analyze/get_cached_pdf_path"]
+        SummaryTools["Summary Tools<br/>generate_summary_markdown"]
+        MCPTools["MCP Tools<br/>外部MCP服务器集成"]
+    end
+
+    %% 服务层
+    subgraph "服务层 (Services)"
+        HKEXService["HKEX API Service<br/>get_stock_id/search/get_latest/get_categories"]
+        PDFService["PDF Parser Service<br/>download/extract_text/extract_tables/analyze_structure"]
     end
 
     %% 提示词层
     subgraph "提示词层 (Prompts)"
-        SystemPrompt["System Prompts<br/>- main_system_prompt<br/>- longterm_memory_prompt"]
-        SubagentPrompts["Subagent Prompts<br/>- pdf_analyzer_prompt<br/>- report_generator_prompt"]
+        SystemPrompt["System Prompts<br/>main_system_prompt<br/>longterm_memory_prompt"]
+        SubagentPrompts["Subagent Prompts<br/>pdf_analyzer_prompt<br/>report_generator_prompt"]
+    end
+
+    %% 存储层
+    subgraph "存储层 (Backends)"
+        CompositeBackend["Composite Backend<br/>路径路由管理"]
+        PDFCache["PDF Cache Backend<br/>/pdf_cache/<br/>[Virtual Mode]"]
+        Memories["Memories Backend<br/>用户级 + 项目级<br/>[Virtual Mode]"]
+        SkillsBackend["Skills Backend<br/>YAML frontmatter 技能库"]
+        MDBackend["MD Backend<br/>Markdown摘要缓存<br/>[Virtual Mode]"]
+        DefaultFS["Default Filesystem<br/>沙箱化工作目录<br/>[Virtual Mode]"]
+    end
+
+    %% 外部服务
+    subgraph "外部服务"
+        HKEXAPI["HKEX API"]
+        MCPServers["MCP Servers<br/>CCASS分析等扩展工具"]
+        LLM["Language Models<br/>SiliconFlow / OpenAI / Anthropic"]
     end
 
     %% 连接关系
     CLI --> MainAgent
+    CLI --> ContextUI
+    CLI --> ProjectUtils
     API --> MainAgent
-    
+
+    ProjectUtils --> MemoryMW
+    ProjectUtils --> SkillsMW
+
     MainAgent --> SubAgentMW
     SubAgentMW --> PDFAnalyzer
     SubAgentMW --> ReportGen
-    
-    MainAgent --> HKEXTools
-    MainAgent --> PDFTools
-    MainAgent --> SummaryTools
-    MainAgent --> MCPTools
-    
-    PDFAnalyzer --> PDFTools
-    ReportGen --> HKEXTools
-    ReportGen --> PDFTools
-    
-    MCPTools --> MCPServers
-    
-    HKEXTools --> HKEXService
-    PDFTools --> PDFService
-    PDFTools --> HKEXService
-    
-    HKEXService --> HKEXAPI
-    PDFService --> HKEXAPI
-    
+
     MainAgent --> MemoryMW
     MainAgent --> SkillsMW
     MainAgent --> ShellMW
     MainAgent --> SummarizationMW
-    MainAgent --> LLM
-    
-    SummarizationMW --> LLM
-    
+    MainAgent --> HKEXTools
+    MainAgent --> PDFTools
+    MainAgent --> SummaryTools
+    MainAgent --> MCPTools
     MainAgent --> SystemPrompt
-    PDFAnalyzer --> SubagentPrompts
-    ReportGen --> SubagentPrompts
-    
     MainAgent --> CompositeBackend
+    MainAgent --> LLM
+
+    SummarizationMW --> LLM
+
+    PDFAnalyzer --> PDFTools
+    PDFAnalyzer --> SubagentPrompts
+    ReportGen --> HKEXTools
+    ReportGen --> PDFTools
+    ReportGen --> SubagentPrompts
+
+    HKEXTools --> HKEXService
+    PDFTools --> PDFService
+    PDFTools --> HKEXService
+    MCPTools --> MCPServers
+
+    HKEXService --> HKEXAPI
+    PDFService --> HKEXAPI
+    PDFService --> PDFCache
+
+    MemoryMW --> Memories
+    SkillsMW --> SkillsBackend
+    SummaryTools --> MDBackend
+
     CompositeBackend --> PDFCache
     CompositeBackend --> Memories
     CompositeBackend --> SkillsBackend
     CompositeBackend --> MDBackend
     CompositeBackend --> DefaultFS
-    
-    MemoryMW --> Memories
-    SkillsMW --> SkillsBackend
-    
-    PDFService --> PDFCache
-    SummaryTools --> MDBackend
 
     %% 样式
     classDef userInterface fill:#e1f5ff,stroke:#01579b,stroke-width:2px
@@ -125,7 +127,7 @@ graph TB
     classDef external fill:#ffebee,stroke:#b71c1c,stroke-width:2px
     classDef prompt fill:#f1f8e9,stroke:#33691e,stroke-width:2px
 
-    class CLI,API userInterface
+    class CLI,ContextUI,ProjectUtils,API userInterface
     class MainAgent,PDFAnalyzer,ReportGen agent
     class HKEXTools,PDFTools,SummaryTools,MCPTools tool
     class HKEXService,PDFService service
@@ -145,6 +147,8 @@ graph TB
   - **Show Thinking** (NEW): `--show-thinking` 标志显示 Agent 推理过程
   - **Tool Outputs Toggle** (NEW): `Ctrl+O` 切换工具输出显示/隐藏
   - **Auto-Approve Toggle**: `Ctrl+T` 切换自动批准模式
+- **Context Monitor**: 独立展示当前上下文占用与颜色预警
+- **Project Utils** (NEW): 自动检测项目根目录 (.hkex-agent 或 .git) 并解析 `agent_dir`
 - **API Client**: Python API客户端，支持程序化调用
 
 ### 2. 代理层
