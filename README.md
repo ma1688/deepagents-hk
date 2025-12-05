@@ -885,15 +885,43 @@ MCP_CONFIG_PATH=mcp_config.json      # MCP 配置文件路径（可选）
       "name": "ccass-mcp-server",
       "baseUrl": "http://1.14.239.79:6008/mcp",
       "isActive": true
+    },
+    "yahoo-finance": {
+      "command": "uvx",
+      "args": ["mcp-yahoo-finance"]
     }
   }
 }
 ```
 
 **支持的传输类型**：
-- `sse`: Server-Sent Events
+- `sse`: Server-Sent Events（远程 HTTP 服务器）
 - `streamable_http`: HTTP 流式传输
-- `stdio`: 标准输入输出（本地进程）
+- `stdio`: 标准输入输出（本地进程，如 uvx、npx、python 命令）
+
+**🔧 自动类型识别**：
+
+系统支持自动识别 MCP 服务器类型，无需显式声明 `type` 字段：
+
+| 配置字段 | 自动识别为 | 示例 |
+|---------|----------|------|
+| 有 `command` | `stdio` | uvx, npx, python 等本地命令 |
+| 有 `url` 或 `baseUrl` | `sse` | HTTP/HTTPS MCP 服务器 |
+
+简化配置示例：
+```json
+{
+  "mcpServers": {
+    "my-stdio-server": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"]
+    },
+    "my-sse-server": {
+      "url": "https://api.example.com/mcp"
+    }
+  }
+}
+```
 
 #### 3. 使用 MCP 工具
 

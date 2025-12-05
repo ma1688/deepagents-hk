@@ -160,8 +160,18 @@ async def create_hkex_agent(
                 if not server_config.get("isActive", True):
                     continue
 
-                # Map type to transport
-                transport_type = server_config.get("type", "sse")
+                # Map type to transport (auto-detect if not specified)
+                transport_type = server_config.get("type")
+                if not transport_type:
+                    # Auto-detect: stdio if has command, sse if has url
+                    if server_config.get("command"):
+                        transport_type = "stdio"
+                    elif server_config.get("url") or server_config.get("baseUrl"):
+                        transport_type = "sse"
+                    else:
+                        print(f"⚠️  MCP服务器 '{server_name}' 配置不完整，已跳过")
+                        continue
+
                 if transport_type == "sse":
                     connections[server_name] = {
                         "url": server_config.get("url") or server_config.get("baseUrl"),

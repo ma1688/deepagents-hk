@@ -7,6 +7,10 @@
       "name": "ccass-mcp-server",
       "baseUrl": "http://1.14.239.79:6008/mcp",
       "isActive": true
+    },
+    "yahoo-finance": {
+      "command": "uvx",
+      "args": ["mcp-yahoo-finance"]
     }
   }
 }
