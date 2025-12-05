@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **deepagents-hk** (v0.2.5) 是基于 Deep Agents 框架开发的港股智能分析系统，专门处理港交所公告、PDF 文档解析和智能摘要生成。
 
 **上游同步记录**:
+- 2025-12-05: ✅ 启用流式传输支持更大 max_tokens，修复 Claude Haiku 超时问题
 - 2025-11-25: ✅ 上下文窗口分数、工具返回字符串、Windows路径修复、依赖升级 (deec90d, 0d298da, d13e341)
 - 2025-11-20: ✅ Skills系统和双范围内存 (4c4a552)
 - 2025-11-11: ✅ 移植子代理错误处理优化 (766c41c)
@@ -74,7 +75,7 @@ mypy src/
 pytest --cov=src tests/
 ```
 
-### 交互式命令（CLI内）
+### 斜杠命令（CLI内）
 | 命令 | 说明 |
 |------|------|
 | `/help` | 显示帮助信息 |
@@ -86,15 +87,40 @@ pytest --cov=src tests/
 | `/memory` | 显示内存配置路径 |
 | `/quit` 或 `/exit` | 退出程序 |
 | `!<command>` | 执行Shell命令 |
+
+### 快捷键
+| 快捷键 | 说明 |
+|--------|------|
 | `Ctrl+T` | 切换自动批准模式 |
 | `Ctrl+O` | 切换工具输出显示 |
 | `Ctrl+E` | 打开外部编辑器 |
 | `Alt+Enter` | 多行输入换行 |
 
 ### 环境配置
-创建 `.env` 文件，优先级: SiliconFlow > OpenAI > Anthropic
+创建 `.env` 文件，优先级: Custom API > SiliconFlow > OpenAI > Anthropic
 
 ```bash
+# ========== Custom API (最高优先级) ==========
+# 支持任意 OpenAI/Anthropic 兼容的 API 服务
+# 适用于：本地 LLM、Azure OpenAI、第三方代理等
+CUSTOM_API_KEY=your_api_key           # API 密钥
+CUSTOM_API_URL=https://your-api.com/v1  # API 端点
+CUSTOM_API_MODEL=your-model-name      # 模型名称
+CUSTOM_API_PROTOCOL=openai            # 协议类型：openai（默认）或 anthropic
+
+# 使用示例：
+# 连接本地 Ollama
+# CUSTOM_API_KEY=ollama
+# CUSTOM_API_URL=http://localhost:11434/v1
+# CUSTOM_API_MODEL=llama3
+# CUSTOM_API_PROTOCOL=openai
+
+# 连接 Azure OpenAI
+# CUSTOM_API_KEY=your-azure-key
+# CUSTOM_API_URL=https://your-resource.openai.azure.com/openai/deployments/your-deployment
+# CUSTOM_API_MODEL=gpt-4
+# CUSTOM_API_PROTOCOL=openai
+
 # ========== SiliconFlow (推荐) ==========
 SILICONFLOW_API_KEY=your_api_key
 SILICONFLOW_MODEL=deepseek-chat                    # 主Agent模型
@@ -103,9 +129,9 @@ SILICONFLOW_REPORT_MODEL=Qwen/Qwen2.5-72B-Instruct # 报告生成模型（高质
 
 # 模型参数（可选）
 SILICONFLOW_TEMPERATURE=0.7          # 温度 (0.0-1.0)
-SILICONFLOW_MAX_TOKENS=20000         # 最大输出tokens
+SILICONFLOW_MAX_TOKENS=32768         # 最大输出tokens（见下方限制说明）
 SILICONFLOW_TOP_P=0.9                # Top-p采样
-SILICONFLOW_API_TIMEOUT=60           # API超时（秒）
+SILICONFLOW_API_TIMEOUT=120          # API超时（秒）
 SILICONFLOW_API_RETRY=3              # 重试次数
 
 # 子Agent独立温度（可选）
@@ -139,6 +165,19 @@ HKEX_AGENT_DIR=.hkex-agent           # 自定义Agent目录名称
 - 支持SiliconFlow、OpenAI、Anthropic多个提供商
 - 不同任务使用不同模型优化成本
 - 实时上下文窗口监控，颜色预警系统
+- **流式传输**: 所有模型默认启用 `streaming=True`，支持更大的 max_tokens
+
+### max_tokens 限制说明
+不同模型和 API 代理有不同的 max_tokens 限制：
+
+| 模型类型 | 非流式限制 | 流式限制 | 推荐值 |
+|----------|-----------|---------|--------|
+| Claude Haiku 4.5 (代理) | ~16384 | ~32768 | 32768 |
+| DeepSeek-V3 | ~16000 | ~65536 | 32768 |
+| Qwen 系列 | ~8192 | ~16384 | 8192 |
+| GPT-4/4o | ~16384 | ~128000 | 16384 |
+
+**注意**: 使用第三方 API 代理时，实际限制可能更低。如遇到超时，请降低 `SILICONFLOW_MAX_TOKENS` 值。
 
 ### 模型上下文窗口配置
 ```python
@@ -442,8 +481,149 @@ from_date=$(date -d "1 year ago" +%Y%m%d)  # Linux: 一年前
 - HITL测试: `pytest libs/deepagents/tests/integration_tests/test_hitl.py`
 
 ### 故障排查
-- 检查环境变量配置优先级（SiliconFlow > OpenAI > Anthropic）
+- 检查环境变量配置优先级（Custom API > SiliconFlow > OpenAI > Anthropic）
 - 查看PDF缓存目录权限
 - 验证API密钥和模型可用性
 - 监控上下文使用率避免超限
 - 使用 `--show-thinking` 调试Agent推理过程
+
+## 🎨 中间件开发指南
+
+### HKEX Agent 中间件执行顺序
+
+HKEX Agent 按以下顺序执行中间件（在 `src/agents/main_agent.py:77-88` 中配置）：
+
+1. **AgentMemoryMiddleware** (`src/cli/agent_memory.py`)
+   - 注入用户级内存（`~/.hkex-agent/{agent}/memories/agent.md`）
+   - 注入项目级内存（`[project]/.hkex-agent/agent.md`）
+   - 优先级：项目级 > 用户级
+
+2. **SkillsMiddleware** (`src/cli/skills/middleware.py`)
+   - 第一阶段：注入技能列表（仅 description）
+   - 第二阶段：按需读取完整技能内容（SKILL.md）
+   - 渐进式披露，减少上下文占用
+
+3. **ShellToolMiddleware** (`libs/deepagents-cli/shell_tool.py`)
+   - 提供 `!<command>` Shell 命令执行能力
+   - 沙箱化执行环境
+
+4. **SubAgentMiddleware** (`libs/deepagents/middleware/subagents.py`)
+   - 提供 `task()` 工具创建子代理
+   - 子代理拥有独立上下文窗口
+   - 支持独立模型配置（见 `src/config/agent_config.py`）
+
+5. **SummarizationMiddleware** (`libs/deepagents/middleware/summarization.py`)
+   - 自动压缩上下文（170k tokens 触发）
+   - 保留最近 6 条消息
+
+### 创建自定义中间件
+
+**标准接口模式**:
+
+```python
+from deepagents.middleware import AgentMiddleware
+from typing import TypedDict
+
+class CustomState(TypedDict):
+    """自定义状态 schema"""
+    custom_field: str
+
+class CustomMiddleware(AgentMiddleware):
+    """自定义中间件示例"""
+
+    state_schema = CustomState  # 可选：定义状态类型
+
+    def before_agent(self, state, runtime):
+        """在代理执行前调用，可修改状态或添加上下文"""
+        state["custom_field"] = "value"
+        return state
+
+    def wrap_model_call(self, request, handler):
+        """同步包装模型调用，可修改请求或响应"""
+        # 修改请求
+        modified_request = self._modify_request(request)
+
+        # 调用模型
+        response = handler(modified_request)
+
+        # 修改响应
+        return self._modify_response(response)
+
+    async def awrap_model_call(self, request, handler):
+        """异步包装模型调用"""
+        response = await handler(request)
+        return response
+```
+
+**集成到 Agent**:
+
+```python
+from src.agents.main_agent import create_hkex_agent
+from src.cli.config import create_model
+
+# 创建自定义中间件
+custom_middleware = CustomMiddleware()
+
+# 集成到 Agent
+model = create_model()
+agent = await create_hkex_agent(
+    model=model,
+    assistant_id="default",
+    middleware=[custom_middleware],  # 添加到中间件列表
+)
+```
+
+### 内置中间件配置说明
+
+**AgentMemoryMiddleware** - 双范围内存注入:
+```python
+AgentMemoryMiddleware(
+    agent_dir=agent_dir,         # Agent 目录（~/.hkex-agent/{agent}）
+    project_root=project_root    # 项目根目录（自动检测 .hkex-agent 或 .git）
+)
+```
+
+**SkillsMiddleware** - 渐进式技能披露:
+```python
+SkillsMiddleware(
+    skills_dir=skills_dir,       # 技能目录
+    backend=filesystem_backend   # 文件系统后端
+)
+```
+
+**SubAgentMiddleware** - 子代理管理:
+```python
+SubAgentMiddleware(
+    default_model="deepseek-chat",
+    subagents=[
+        {
+            "name": "pdf-analyzer",
+            "description": "分析PDF文档",
+            "system_prompt": "你是PDF分析专家...",
+            "model": "Qwen/Qwen2.5-7B-Instruct",  # 独立模型
+            "temperature": 0.3,                    # 独立温度
+        }
+    ]
+)
+```
+
+### 中间件开发最佳实践
+
+1. **状态管理**: 使用 TypedDict 定义清晰的状态 schema
+2. **最小侵入**: 只修改必要的状态字段，避免副作用
+3. **错误处理**: 中间件失败应静默降级，不阻塞 Agent 执行
+4. **性能优先**: 避免在 `wrap_model_call` 中进行耗时操作
+5. **文档完善**: 提供清晰的 docstring 说明中间件用途和配置
+
+### 调试中间件
+
+使用 `--show-thinking` 标志查看中间件注入的上下文：
+
+```bash
+hkex --show-thinking
+```
+
+这会显示：
+- 内存注入的内容
+- 技能列表和详细内容
+- 子代理调用过程

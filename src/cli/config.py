@@ -2,7 +2,6 @@
 
 import os
 import sys
-from pathlib import Path
 from typing import Union
 
 import dotenv
@@ -125,10 +124,10 @@ def create_model():
     
     Uses unified configuration from agent_model_config for temperature and max_tokens.
 
-    Priority: SiliconFlow > OpenAI > Anthropic
+    Priority: Custom API > SiliconFlow > OpenAI > Anthropic
 
     Returns:
-        ChatModel instance (SiliconFlow, OpenAI, or Anthropic)
+        ChatModel instance (Custom, SiliconFlow, OpenAI, or Anthropic)
 
     Raises:
         SystemExit if no API key is configured
@@ -136,20 +135,64 @@ def create_model():
     # Import unified config
     from src.config.agent_config import agent_model_config
     
-    # Check SiliconFlow first (highest priority)
+    # Check Custom API first (highest priority)
+    custom_key = os.environ.get("CUSTOM_API_KEY")
+    custom_url = os.environ.get("CUSTOM_API_URL")
+    custom_model = os.environ.get("CUSTOM_API_MODEL")
+    
+    if custom_key and custom_url and custom_model:
+        protocol = os.environ.get("CUSTOM_API_PROTOCOL", "openai").lower()
+        
+        if protocol == "anthropic":
+            from langchain_anthropic import ChatAnthropic
+            
+            console.print(f"[dim]Using Custom API (Anthropic): {custom_model}[/dim]", justify="center")
+            console.print(f"[dim]  url={custom_url}[/dim]", justify="center")
+            console.print(f"[dim]  temperature={agent_model_config.temperature}, max_tokens={agent_model_config.max_tokens}, timeout={agent_model_config.api_timeout}s[/dim]", justify="center")
+            return ChatAnthropic(
+                model_name=custom_model,
+                base_url=custom_url,
+                api_key=custom_key,
+                temperature=agent_model_config.temperature,
+                max_tokens=agent_model_config.max_tokens,
+                timeout=agent_model_config.api_timeout,
+                max_retries=agent_model_config.api_retry_attempts,
+                streaming=True,  # 启用流式传输，支持更大的 max_tokens
+            )
+        else:  # openai protocol (default)
+            from langchain_openai import ChatOpenAI
+            
+            console.print(f"[dim]Using Custom API (OpenAI): {custom_model}[/dim]", justify="center")
+            console.print(f"[dim]  url={custom_url}[/dim]", justify="center")
+            console.print(f"[dim]  temperature={agent_model_config.temperature}, max_tokens={agent_model_config.max_tokens}, timeout={agent_model_config.api_timeout}s[/dim]", justify="center")
+            return ChatOpenAI(
+                model=custom_model,
+                base_url=custom_url,
+                api_key=custom_key,
+                temperature=agent_model_config.temperature,
+                max_tokens=agent_model_config.max_tokens,
+                timeout=agent_model_config.api_timeout,
+                max_retries=agent_model_config.api_retry_attempts,
+                streaming=True,  # 启用流式传输
+            )
+    
+    # Check SiliconFlow
     siliconflow_key = os.environ.get("SILICONFLOW_API_KEY")
     if siliconflow_key:
         from langchain_openai import ChatOpenAI
 
         model_name = os.environ.get("SILICONFLOW_MODEL", "deepseek-chat")
         console.print(f"[dim]Using SiliconFlow model: {model_name}[/dim]", justify="center")
-        console.print(f"[dim]  temperature={agent_model_config.temperature}, max_tokens={agent_model_config.max_tokens}[/dim]", justify="center")
+        console.print(f"[dim]  temperature={agent_model_config.temperature}, max_tokens={agent_model_config.max_tokens}, timeout={agent_model_config.api_timeout}s[/dim]", justify="center")
         return ChatOpenAI(
             model=model_name,
             base_url="https://api.siliconflow.cn/v1",
             api_key=siliconflow_key,
             temperature=agent_model_config.temperature,
             max_tokens=agent_model_config.max_tokens,
+            timeout=agent_model_config.api_timeout,
+            max_retries=agent_model_config.api_retry_attempts,
+            streaming=True,  # 启用流式传输
         )
 
     # Check OpenAI
@@ -159,11 +202,14 @@ def create_model():
 
         model_name = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
         console.print(f"[dim]Using OpenAI model: {model_name}[/dim]", justify="center")
-        console.print(f"[dim]  temperature={agent_model_config.temperature}, max_tokens={agent_model_config.max_tokens}[/dim]", justify="center")
+        console.print(f"[dim]  temperature={agent_model_config.temperature}, max_tokens={agent_model_config.max_tokens}, timeout={agent_model_config.api_timeout}s[/dim]", justify="center")
         return ChatOpenAI(
             model=model_name,
             temperature=agent_model_config.temperature,
             max_tokens=agent_model_config.max_tokens,
+            timeout=agent_model_config.api_timeout,
+            max_retries=agent_model_config.api_retry_attempts,
+            streaming=True,  # 启用流式传输
         )
 
     # Check Anthropic
@@ -175,15 +221,24 @@ def create_model():
             "ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"
         )
         console.print(f"[dim]Using Anthropic model: {model_name}[/dim]", justify="center")
-        console.print(f"[dim]  max_tokens={agent_model_config.max_tokens}[/dim]", justify="center")
+        console.print(f"[dim]  max_tokens={agent_model_config.max_tokens}, timeout={agent_model_config.api_timeout}s[/dim]", justify="center")
         return ChatAnthropic(
             model_name=model_name,
             max_tokens=agent_model_config.max_tokens,
+            timeout=agent_model_config.api_timeout,
+            max_retries=agent_model_config.api_retry_attempts,
+            streaming=True,  # 启用流式传输
         )
 
     # No API key found
     console.print("[bold red]Error:[/bold red] No API key configured.")
     console.print("\nPlease set one of the following environment variables:")
+    console.print("\n[bold]Custom API (any OpenAI/Anthropic compatible service):[/bold]")
+    console.print("  CUSTOM_API_KEY=your_api_key")
+    console.print("  CUSTOM_API_URL=https://your-api-endpoint.com/v1")
+    console.print("  CUSTOM_API_MODEL=your-model-name")
+    console.print("  CUSTOM_API_PROTOCOL=openai  # or anthropic")
+    console.print("\n[bold]Or use a preset provider:[/bold]")
     console.print("  - SILICONFLOW_API_KEY  (for SiliconFlow models like deepseek-chat)")
     console.print("  - OPENAI_API_KEY       (for OpenAI models like gpt-5-mini)")
     console.print("  - ANTHROPIC_API_KEY    (for Claude models)")

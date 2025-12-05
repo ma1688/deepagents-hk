@@ -6,6 +6,7 @@ from typing import Optional
 
 # Load environment variables early
 import dotenv
+
 dotenv.load_dotenv()
 
 
@@ -131,6 +132,7 @@ class SubAgentModelConfig:
             "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
             "timeout": self.api_timeout,
             "max_retries": self.api_retry_attempts,
+            "streaming": True,  # 启用流式传输
         }
         
         # 添加可选参数
