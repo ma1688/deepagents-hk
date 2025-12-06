@@ -1,6 +1,5 @@
 """PDF processing tools for DeepAgents."""
 
-import os
 from pathlib import Path
 from typing import Any
 

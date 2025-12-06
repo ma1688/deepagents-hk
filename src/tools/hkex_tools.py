@@ -1,6 +1,5 @@
 """HKEX tools for DeepAgents."""
 
-from datetime import datetime
 from typing import Any
 
 from langchain_core.tools import tool

@@ -1,8 +1,7 @@
 import textwrap
 
-from langchain_core.messages import ToolMessage
-
 from deepagents_cli.file_ops import FileOpTracker, build_approval_preview
+from langchain_core.messages import ToolMessage
 
 
 def test_tracker_records_read_lines(tmp_path):

@@ -4,7 +4,6 @@ from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 
 from deepagents.graph import create_deep_agent
-
 from ..utils import (
     SAMPLE_MODEL,
     TOY_BASKETBALL_RESEARCH,

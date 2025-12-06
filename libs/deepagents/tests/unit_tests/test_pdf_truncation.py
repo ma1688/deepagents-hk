@@ -1,6 +1,5 @@
 """Unit tests for PDF content truncation functionality."""
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -8,10 +7,8 @@ import pytest
 
 from src.services.pdf_parser import PDFParserService
 from src.tools.pdf_tools import (
-    MAX_INLINE_TABLE_ROWS,
     MAX_INLINE_TEXT_CHARS,
     TABLE_PREVIEW_COUNT,
-    TEXT_PREVIEW_CHARS,
     extract_pdf_content,
 )
 

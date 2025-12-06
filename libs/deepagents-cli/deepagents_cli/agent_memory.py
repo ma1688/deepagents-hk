@@ -3,13 +3,14 @@
 from collections.abc import Awaitable, Callable
 from typing import NotRequired
 
-from deepagents.backends.protocol import BackendProtocol
 from langchain.agents.middleware.types import (
     AgentMiddleware,
     AgentState,
     ModelRequest,
     ModelResponse,
 )
+
+from deepagents.backends.protocol import BackendProtocol
 
 
 class AgentMemoryState(AgentState):

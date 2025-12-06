@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from langchain.agents.middleware import HostExecutionPolicy, InterruptOnConfig
+from langchain.agents.middleware.shell_tool import ShellToolMiddleware
 from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import InMemorySaver
 
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend
 from deepagents.backends.filesystem import FilesystemBackend
-from langchain.agents.middleware.shell_tool import ShellToolMiddleware
 from src.cli.agent_memory import AgentMemoryMiddleware
 from src.prompts.prompts import get_main_system_prompt
 from src.tools.hkex_tools import (

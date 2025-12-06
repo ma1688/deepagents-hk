@@ -3,13 +3,13 @@
 import logging
 import os
 import re
+import ssl
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pdfplumber
-import ssl
 
 # Suppress pdfminer warnings about color spaces
 # These warnings are common in HKEX PDFs but don't affect text/table extraction
