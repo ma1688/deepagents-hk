@@ -2,9 +2,12 @@
 用户认证服务 - 处理用户注册、登录验证
 
 提供密码哈希、用户创建和验证功能。
+支持邀请码机制控制注册。
 """
 
+import secrets
 import sqlite3
+import string
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +18,210 @@ import bcrypt
 # 数据库路径
 project_root = Path(__file__).parent.parent.resolve()
 DB_PATH = project_root / "chainlit_data" / "chat_history.db"
+
+
+# ============== 邀请码功能 ==============
+
+def init_invite_codes_table():
+    """初始化邀请码表。"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS invite_codes (
+            id TEXT PRIMARY KEY,
+            code TEXT UNIQUE NOT NULL,
+            created_by TEXT,
+            created_at TEXT NOT NULL,
+            used_by TEXT,
+            used_at TEXT,
+            max_uses INTEGER DEFAULT 1,
+            use_count INTEGER DEFAULT 0,
+            expires_at TEXT,
+            note TEXT
+        )
+    """)
+    
+    conn.commit()
+    conn.close()
+
+
+def generate_invite_code(
+    created_by: Optional[str] = None,
+    max_uses: int = 1,
+    expires_days: Optional[int] = None,
+    note: Optional[str] = None,
+    code_length: int = 8
+) -> dict:
+    """生成新的邀请码。
+    
+    Args:
+        created_by: 创建者用户名
+        max_uses: 最大使用次数，默认1次
+        expires_days: 过期天数，None表示永不过期
+        note: 备注信息
+        code_length: 邀请码长度，默认8位
+        
+    Returns:
+        邀请码信息字典
+    """
+    init_invite_codes_table()
+    
+    # 生成随机邀请码 (大写字母+数字)
+    alphabet = string.ascii_uppercase + string.digits
+    code = ''.join(secrets.choice(alphabet) for _ in range(code_length))
+    
+    code_id = str(uuid.uuid4())
+    created_at = datetime.utcnow().isoformat() + "Z"
+    
+    expires_at = None
+    if expires_days:
+        from datetime import timedelta
+        expires_at = (datetime.utcnow() + timedelta(days=expires_days)).isoformat() + "Z"
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        """
+        INSERT INTO invite_codes (id, code, created_by, created_at, max_uses, expires_at, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (code_id, code, created_by, created_at, max_uses, expires_at, note)
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    return {
+        "id": code_id,
+        "code": code,
+        "created_by": created_by,
+        "created_at": created_at,
+        "max_uses": max_uses,
+        "use_count": 0,
+        "expires_at": expires_at,
+        "note": note
+    }
+
+
+def validate_invite_code(code: str) -> tuple[bool, str]:
+    """验证邀请码是否有效。
+    
+    Args:
+        code: 邀请码
+        
+    Returns:
+        (是否有效, 错误信息或成功信息)
+    """
+    init_invite_codes_table()
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        "SELECT * FROM invite_codes WHERE code = ?",
+        (code.upper(),)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return False, "邀请码无效"
+    
+    invite = dict(row)
+    
+    # 检查使用次数
+    if invite["use_count"] >= invite["max_uses"]:
+        return False, "邀请码已达到使用上限"
+    
+    # 检查是否过期
+    if invite["expires_at"]:
+        expires = datetime.fromisoformat(invite["expires_at"].replace("Z", "+00:00"))
+        if datetime.utcnow().replace(tzinfo=expires.tzinfo) > expires:
+            return False, "邀请码已过期"
+    
+    return True, "邀请码有效"
+
+
+def use_invite_code(code: str, used_by: str) -> bool:
+    """使用邀请码（增加使用计数）。
+    
+    Args:
+        code: 邀请码
+        used_by: 使用者用户名
+        
+    Returns:
+        是否成功使用
+    """
+    valid, _ = validate_invite_code(code)
+    if not valid:
+        return False
+    
+    used_at = datetime.utcnow().isoformat() + "Z"
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        """
+        UPDATE invite_codes 
+        SET use_count = use_count + 1, used_by = ?, used_at = ?
+        WHERE code = ?
+        """,
+        (used_by, used_at, code.upper())
+    )
+    
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    
+    return affected > 0
+
+
+def list_invite_codes() -> list[dict]:
+    """列出所有邀请码（管理用）。
+    
+    Returns:
+        邀请码列表
+    """
+    init_invite_codes_table()
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        """
+        SELECT * FROM invite_codes ORDER BY created_at DESC
+        """
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+
+def delete_invite_code(code: str) -> bool:
+    """删除邀请码。
+    
+    Args:
+        code: 邀请码
+        
+    Returns:
+        是否成功删除
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM invite_codes WHERE code = ?", (code.upper(),))
+    
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    
+    return affected > 0
 
 
 def hash_password(password: str) -> str:

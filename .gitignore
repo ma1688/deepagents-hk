@@ -222,3 +222,8 @@ pdf_cache/
 md/
 港交所原始API接口文档.md
 .DS_Store
+
+# Chainlit data and database
+chainlit_data/
+*.db
+*.db-journal

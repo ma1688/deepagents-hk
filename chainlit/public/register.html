@@ -289,6 +289,18 @@
             
             <form id="registerForm" novalidate>
                 <div class="form-group">
+                    <label for="invite_code">邀请码 <span class="required">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="text" id="invite_code" name="invite_code" 
+                               placeholder="请输入邀请码" 
+                               autocomplete="off" required
+                               style="text-transform: uppercase; letter-spacing: 2px;">
+                        <span class="validation-icon" id="inviteCodeIcon"></span>
+                    </div>
+                    <div class="error-message" id="inviteCodeError"></div>
+                </div>
+                
+                <div class="form-group">
                     <label for="username">用户名 <span class="required">*</span></label>
                     <div class="input-wrapper">
                         <input type="text" id="username" name="username" 
@@ -362,6 +374,7 @@
         const submitBtn = document.getElementById('submitBtn');
         
         // 输入元素
+        const inviteCodeInput = document.getElementById('invite_code');
         const usernameInput = document.getElementById('username');
         const emailInput = document.getElementById('email');
         const displayNameInput = document.getElementById('display_name');
@@ -369,11 +382,13 @@
         const confirmInput = document.getElementById('confirm_password');
         
         // 验证图标
+        const inviteCodeIcon = document.getElementById('inviteCodeIcon');
         const usernameIcon = document.getElementById('usernameIcon');
         const emailIcon = document.getElementById('emailIcon');
         const confirmIcon = document.getElementById('confirmIcon');
         
         // 错误消息
+        const inviteCodeError = document.getElementById('inviteCodeError');
         const usernameError = document.getElementById('usernameError');
         const emailError = document.getElementById('emailError');
         const displayNameError = document.getElementById('displayNameError');
@@ -422,6 +437,43 @@
                 icon.textContent = '';
             }
         }
+        
+        // 验证邀请码
+        const validateInviteCode = debounce(async () => {
+            const code = inviteCodeInput.value.trim().toUpperCase();
+            
+            if (!code) {
+                setValidation(inviteCodeInput, inviteCodeIcon, null);
+                hideError(inviteCodeError);
+                return;
+            }
+            
+            if (code.length < 6) {
+                setValidation(inviteCodeInput, inviteCodeIcon, false);
+                showError(inviteCodeError, '邀请码格式不正确');
+                return;
+            }
+            
+            // 检查邀请码是否有效
+            try {
+                const response = await fetch('/api/check-invite-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invite_code: code })
+                });
+                const data = await response.json();
+                
+                if (data.valid) {
+                    setValidation(inviteCodeInput, inviteCodeIcon, true);
+                    hideError(inviteCodeError);
+                } else {
+                    setValidation(inviteCodeInput, inviteCodeIcon, false);
+                    showError(inviteCodeError, data.message || '邀请码无效');
+                }
+            } catch (e) {
+                setValidation(inviteCodeInput, inviteCodeIcon, null);
+            }
+        }, 500);
         
         // 验证用户名
         const validateUsername = debounce(async () => {
@@ -597,6 +649,7 @@
         }
         
         // 绑定事件
+        inviteCodeInput.addEventListener('input', validateInviteCode);
         usernameInput.addEventListener('input', validateUsername);
         emailInput.addEventListener('input', validateEmail);
         passwordInput.addEventListener('input', validatePassword);
@@ -618,6 +671,7 @@
             e.preventDefault();
             hideAlert();
             
+            const inviteCode = inviteCodeInput.value.trim().toUpperCase();
             const username = usernameInput.value.trim();
             const email = emailInput.value.trim();
             const displayName = displayNameInput.value.trim();
@@ -625,7 +679,7 @@
             const confirm = confirmInput.value;
             
             // 前端验证
-            if (!username || !email || !displayName || !password || !confirm) {
+            if (!inviteCode || !username || !email || !displayName || !password || !confirm) {
                 showAlert('请填写所有必填字段', 'error');
                 return;
             }
@@ -651,6 +705,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
+                        invite_code: inviteCode,
                         username,
                         email,
                         display_name: displayName,

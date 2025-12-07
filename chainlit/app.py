@@ -236,6 +236,7 @@ class RegisterRequest(BaseModel):
     password: str
     email: EmailStr
     display_name: str
+    invite_code: str  # 邀请码（必填）
     
     @field_validator("username")
     @classmethod
@@ -266,15 +267,30 @@ class RegisterRequest(BaseModel):
         if len(v) > 64:
             raise ValueError("显示名称不能超过 64 个字符")
         return v
+    
+    @field_validator("invite_code")
+    @classmethod
+    def validate_invite_code(cls, v: str) -> str:
+        """验证邀请码格式。"""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("请输入邀请码")
+        return v.strip().upper()
 
 
 @fastapi_app.post("/api/register")
 async def register_user(req: RegisterRequest):
     """用户注册 API。
     
-    创建新用户账户，密码使用 bcrypt 加密存储。
+    创建新用户账户，需要有效邀请码。
+    密码使用 bcrypt 加密存储。
     """
     try:
+        # 1. 验证邀请码
+        valid, message = auth_service.validate_invite_code(req.invite_code)
+        if not valid:
+            raise HTTPException(status_code=400, detail=message)
+        
+        # 2. 创建用户
         user = auth_service.create_user(
             username=req.username,
             password=req.password,
@@ -282,6 +298,10 @@ async def register_user(req: RegisterRequest):
             display_name=req.display_name,
             role="USER"
         )
+        
+        # 3. 标记邀请码已使用
+        auth_service.use_invite_code(req.invite_code, req.username)
+        
         return {
             "success": True,
             "message": "注册成功",
@@ -291,6 +311,8 @@ async def register_user(req: RegisterRequest):
                 "display_name": user["display_name"]
             }
         }
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -326,6 +348,72 @@ async def check_email(req: CheckEmailRequest):
     """检查邮箱是否可用。"""
     user = auth_service.get_user_by_email(req.email)
     return {"available": user is None}
+
+
+# ============== 邀请码 API ==============
+
+class CheckInviteCodeRequest(BaseModel):
+    """检查邀请码请求模型。"""
+    invite_code: str
+
+
+@fastapi_app.post("/api/check-invite-code")
+async def check_invite_code(req: CheckInviteCodeRequest):
+    """检查邀请码是否有效。"""
+    valid, message = auth_service.validate_invite_code(req.invite_code)
+    return {"valid": valid, "message": message}
+
+
+class GenerateInviteCodeRequest(BaseModel):
+    """生成邀请码请求模型。"""
+    max_uses: int = 1
+    expires_days: Optional[int] = None
+    note: Optional[str] = None
+
+
+@fastapi_app.post("/api/admin/invite-codes")
+async def generate_invite_code(req: GenerateInviteCodeRequest):
+    """生成新邀请码（管理员接口）。
+    
+    注意：生产环境应添加管理员权限验证。
+    """
+    try:
+        invite = auth_service.generate_invite_code(
+            max_uses=req.max_uses,
+            expires_days=req.expires_days,
+            note=req.note
+        )
+        return {"success": True, "invite_code": invite}
+    except Exception as e:
+        logger.exception("生成邀请码失败")
+        raise HTTPException(status_code=500, detail="生成邀请码失败")
+
+
+@fastapi_app.get("/api/admin/invite-codes")
+async def list_invite_codes():
+    """列出所有邀请码（管理员接口）。
+    
+    注意：生产环境应添加管理员权限验证。
+    """
+    codes = auth_service.list_invite_codes()
+    return {"invite_codes": codes}
+
+
+class DeleteInviteCodeRequest(BaseModel):
+    """删除邀请码请求模型。"""
+    code: str
+
+
+@fastapi_app.delete("/api/admin/invite-codes")
+async def delete_invite_code(req: DeleteInviteCodeRequest):
+    """删除邀请码（管理员接口）。
+    
+    注意：生产环境应添加管理员权限验证。
+    """
+    success = auth_service.delete_invite_code(req.code)
+    if success:
+        return {"success": True, "message": "邀请码已删除"}
+    raise HTTPException(status_code=404, detail="邀请码不存在")
 
 
 # ============== 用户预设管理 API ==============
