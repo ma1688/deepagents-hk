@@ -9,7 +9,7 @@ dependencies = [
     "langchain-anthropic>=1.2.0,<2.0.0",
     "langchain>=1.1.0,<2.0.0",
     "langchain-core>=1.1.0,<2.0.0",
-    "langchain-openai>=0.1.0",
+    "langchain-openai==1.1.0",
     "langchain-mcp-adapters>=0.1.0",
     "wcmatch",
     "tavily>=1.1.0",
@@ -23,6 +23,8 @@ dependencies = [
     "prompt-toolkit>=3.0.52",
     "python-dotenv",
     "markdownify>=0.13.0",
+    "langgraph==1.0.4",
+    "chainlit==2.9.3",
 ]
 
 

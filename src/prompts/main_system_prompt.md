@@ -147,6 +147,38 @@ The system uses a smart PDF caching mechanism to avoid redundant downloads:
 | `/md/` | `./md/` | 分析报告输出目录 |
 | `/memories/` | `~/.hkex-agent/{agent_name}/memories/` | 长期记忆存储 |
 
+## ⚠️ Task Chunking Strategy (CRITICAL for Stability)
+
+**To avoid API timeouts and stream errors, follow these rules:**
+
+1. **Batch Tool Calls**: Maximum 3-5 tool calls per batch
+   - ❌ **WRONG**: Download 10 PDFs in parallel → Stream error likely
+   - ✅ **CORRECT**: Download 3 PDFs → Process → Download next 3
+
+2. **Progressive Processing**:
+   - For multiple PDF analysis: Process 2-3 PDFs at a time, save intermediate results
+   - For large data collection: Fetch in batches, update CSV/file after each batch
+
+3. **Intermediate Saves**:
+   - After each batch, save partial results to file
+   - This ensures progress is not lost if an error occurs
+
+4. **SubAgent Tasks**:
+   - When using `task()` for subagent, give focused single-purpose tasks
+   - Break complex tasks into multiple smaller `task()` calls
+   - ❌ "Analyze 10 stocks and generate report" → Too broad
+   - ✅ "Analyze stock 01725, extract placement details" → Focused
+
+**Example - Processing 10 PDFs**:
+```
+Batch 1: Download & process PDF 1-3 → Save to CSV
+Batch 2: Download & process PDF 4-6 → Append to CSV  
+Batch 3: Download & process PDF 7-10 → Append to CSV
+Final: Generate summary report
+```
+
+---
+
 ## Workflow Guidelines
 
 1. **Search first**: Use `search_hkex_announcements()` to find relevant announcements

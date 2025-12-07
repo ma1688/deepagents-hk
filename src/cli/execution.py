@@ -194,6 +194,39 @@ def prompt_for_tool_approval(action_request: dict, assistant_id: str | None) -> 
     return {"type": "reject", "message": "User rejected the command"}
 
 
+async def reliable_astream(agent, *args, **kwargs):
+    """Wrapper around agent.astream with retry logic for empty generations."""
+    max_retries = 10
+    retry_delay = 1.0
+    attempt = 0
+    
+    while attempt < max_retries:
+        has_yielded = False
+        try:
+            async for chunk in agent.astream(*args, **kwargs):
+                has_yielded = True
+                yield chunk
+            return
+        except ValueError as e:
+            # Handle LangChain stream errors (e.g., "No generations found in stream")
+            # This usually means the API returned an empty response/finished with a safety filter
+            if "No generations found in stream" in str(e):
+                # If we successfully yielded chunks before failing, it means we made progress.
+                # We should reset the counter and consider this a "resume" rather than a "retry".
+                if has_yielded:
+                    console.print(f"\n[dim yellow]⚠️ API glitch after partial output. Resuming...[/dim yellow]")
+                    attempt = 0  # Reset attempt counter
+                    await asyncio.sleep(retry_delay)
+                    continue
+
+                if attempt < max_retries - 1:
+                    attempt += 1
+                    console.print(f"\n[dim yellow]⚠️ API glitch (empty response). Retrying ({attempt}/{max_retries})...[/dim yellow]")
+                    await asyncio.sleep(retry_delay)
+                    continue
+            raise e
+
+
 async def execute_task(
     user_input: str,
     agent,
@@ -201,7 +234,15 @@ async def execute_task(
     session_state,
     token_tracker: TokenTracker | None = None,
 ):
-    """Execute any task by passing it directly to the AI agent."""
+    """Execute any task by passing it directly to the AI agent.
+    
+    Args:
+        user_input: User's input text
+        agent: The agent instance
+        assistant_id: Assistant ID for configuration
+        session_state: Session state object
+        token_tracker: Optional token usage tracker
+    """
     # Parse file mentions and inject content if any
     prompt_text, mentioned_files = parse_file_mentions(user_input)
 
@@ -285,7 +326,8 @@ async def execute_task(
             suppress_resumed_output = False
             hitl_request = None
 
-            async for chunk in agent.astream(
+            async for chunk in reliable_astream(
+                agent,
                 stream_input,
                 stream_mode=["messages", "updates"],  # Dual-mode for HITL support
                 subgraphs=True,
@@ -634,6 +676,58 @@ async def execute_task(
             console.print("Ready for next command.\n", style="dim")
         except Exception as e:
             console.print(f"[red]Warning: Failed to update agent state: {e}[/red]\n")
+
+        return
+
+    except TypeError as e:
+        # Handle LangGraph serialization errors (e.g., "Type is not msgpack serializable: Send")
+        if spinner_active:
+            status.stop()
+
+        error_msg = str(e)
+        if "msgpack serializable" in error_msg:
+            console.print()
+            console.print(
+                f"[red]❌ Error: {error_msg}[/red]"
+            )
+            console.print(
+                "[dim]This is a LangGraph serialization issue with SubAgents.[/dim]"
+            )
+            console.print(
+                "[dim]Try: 1) Use /clear to reset context, 2) Retry with simpler request, "
+                "3) Update langgraph: uv add langgraph --upgrade[/dim]"
+            )
+            console.print()
+        else:
+            console.print(f"\n[red]❌ Error: {error_msg}[/red]\n")
+
+        return
+
+    except ValueError as e:
+        # Handle LangChain stream errors (e.g., "No generations found in stream")
+        if spinner_active:
+            status.stop()
+
+        error_msg = str(e)
+        if "No generations found in stream" in error_msg:
+            # Show friendly error message (no auto-retry to avoid context explosion)
+            console.print()
+            console.print(
+                "[red]❌ Error: No generations found in stream.[/red]"
+            )
+            console.print(
+                "[dim]This usually means the API returned an empty response.[/dim]"
+            )
+            console.print(
+                "[dim]Possible causes: API timeout, max_tokens exhausted, or service error.[/dim]"
+            )
+            console.print(
+                "[dim]Try: 1) Retry the request manually, 2) Use /clear to reset context, "
+                "3) Check API status.[/dim]"
+            )
+            console.print()
+        else:
+            console.print(f"\n[red]❌ Error: {error_msg}[/red]\n")
 
         return
 

@@ -64,6 +64,12 @@ class FilesystemBackend(BackendProtocol):
             Resolved absolute Path object
         """
         if self.virtual_mode:
+            # If input path starts with cwd, strip it to prevent double-nesting
+            # This handles cases where LLM provides full system absolute path
+            cwd_str = str(self.cwd)
+            if key.startswith(cwd_str):
+                key = key[len(cwd_str):]
+
             vpath = key if key.startswith("/") else "/" + key
             if ".." in vpath or vpath.startswith("~"):
                 raise ValueError("Path traversal not allowed")
