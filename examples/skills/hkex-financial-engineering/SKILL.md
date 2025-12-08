@@ -1,62 +1,93 @@
 ---
 name: hkex-financial-engineering
-description: Comprehensive analysis framework for Hong Kong stock financial engineering operations (財技分析)
+description: 港股财技分析协调器 - 整合供股/配股/合股/拆股/买卖壳/CCASS分析的完整框架（引用其他专项技能）
 ---
 
 # 港股財技分析技能 (HKEX Financial Engineering Analysis)
 
-## When to Use This Skill
+## ⚠️ 重要：技能引用关系
 
-Use this skill when you need to:
-- Analyze corporate action announcements (供股、配股、拆股、合股)
-- Identify shell game operations (買賣殼、白武士重組)
-- Detect manipulation patterns in CCASS data (射倉、實物存入)
-- Evaluate capital restructuring strategies
-- Assess risk/opportunity in financial engineering plays
+本技能作为**财技分析协调器**，整合多个专项技能：
 
-## Background: What is Financial Engineering (財技)?
+| 分析类型 | 引用技能 | 说明 |
+|----------|----------|------|
+| 配售/供股/业绩分析 | `hkex-announcement` | 公告提取和基础分析 |
+| CCASS持仓追踪 | `ccass-tracking` | 券商持仓和资金流向 |
+| 财务指标计算 | `financial-metrics` | 估值和盈利能力指标 |
 
-Financial engineering in Hong Kong stocks refers to corporate actions and market manipulation techniques used by major shareholders to:
-1. **Raise capital** - through placements, rights issues
-2. **Consolidate control** - through offers, capital reorganization
-3. **Extract value** - through distribution patterns, shell games
-4. **Reset share price** - through consolidation + split combos
-
-### Key Market Participants (炒股生態食物鏈)
-
-| Level | Participant | Role |
-|-------|-------------|------|
-| 1 | 大股東 (Major Shareholder) | Controls company decisions |
-| 2 | 莊家 (Market Maker) | Coordinates price movements |
-| 3 | 配售商 (Placee) | Provides capital, takes positions |
-| 4 | 基金/機構 | Follows trends, adds liquidity |
-| 5 | 散戶 (Retail) | Last in chain, highest risk |
+**工作流程**：
+1. 先阅读本技能了解整体框架
+2. 根据任务类型读取对应专项技能获取详细工作流程
+3. 综合分析生成报告
 
 ---
 
-## Part 1: Corporate Actions Analysis (股本操作)
+## 何时使用此技能
 
-### 1.1 Rights Issue (供股)
+当您需要以下操作时，请使用此技能：
+- 分析公司行动公告（供股、配股、拆股、合股）
+- 识别买卖壳操作（買賣殼、白武士重組）
+- 检测 CCASS 数据中的操纵模式（射倉、實物存入）
+- 评估资本重组策略
+- 评估财技操作中的风险/机会
 
-**Definition**: Company offers existing shareholders the right to buy new shares at a discount.
+## 背景：什么是财技？
 
-**Key Metrics to Extract:**
-- 供股比例 (Subscription Ratio): e.g., "2-for-1" means 2 new shares for every 1 held
-- 供股價 (Subscription Price)
-- 折讓率 (Discount to Market): (Market Price - Subscription Price) / Market Price × 100%
-- 包銷安排 (Underwriting): Fully underwritten vs. non-underwritten
-- 不可撤回承諾 (Irrevocable Undertaking): Major shareholder commitment
+港股中的财技是指大股东用于以下目的的公司行动和市场操纵技术：
+1. **筹集资金** - 通过配售、供股
+2. **巩固控制** - 通过要约、资本重组
+3. **提取价值** - 通过派发模式、买卖壳游戏
+4. **重置股价** - 通过合股 + 拆股组合
 
-**Risk Assessment:**
+### 財技股5大致勝關鍵
 
-| Indicator | Low Risk | Medium Risk | High Risk |
-|-----------|----------|-------------|-----------|
-| Ratio | ≤1-for-5 | 1-for-2 | ≥1-for-1 |
-| Discount | ≤10% | 10-20% | >20% |
-| Underwriting | Fully underwritten | Partially | Not underwritten |
-| Use of Proceeds | Specific projects | Working capital | Debt repayment |
+| # | 關鍵要素 | 說明 |
+|---|---------|------|
+| 1 | **時機判斷** | 財技操作前後的入場/離場時機 |
+| 2 | **大股東行為** | 追蹤大股東的增減持、承諾、關聯交易 |
+| 3 | **條款細節** | 深入分析公告中的小字條款（折讓率、包銷、鎖定期） |
+| 4 | **歷史模式** | 對比該公司/該大股東過往財技操作結果 |
+| 5 | **CCASS信號** | 結合持倉變化判斷市場真實動向 |
 
-**Decision Tree:**
+**致勝公式:**
+```
+財技獲利 = 正確識別模式 × 正確時機 × 風險控制
+```
+
+### 关键市场参与者（炒股生態食物鏈）
+
+| 层级 | 参与者 | 角色 |
+|------|--------|------|
+| 1 | 大股東（Major Shareholder） | 控制公司决策 |
+| 2 | 莊家（Market Maker） | 协调价格走势 |
+| 3 | 配售商（Placee） | 提供资金，建立仓位 |
+| 4 | 基金/機構 | 追随趋势，增加流动性 |
+| 5 | 散戶（Retail） | 链条末端，风险最高 |
+
+---
+
+## 第一部分：股本操作分析
+
+### 1.1 供股与配股分析
+
+> **📖 详细工作流程**：请读取 `hkex-announcement` 技能
+> ```
+> read_file('{skills_dir}/hkex-announcement/SKILL.md')
+> ```
+
+**本技能提供的补充框架**：
+
+#### 供股风险评估矩阵
+
+| 指标 | 低风险 | 中等风险 | 高风险 |
+|------|--------|----------|--------|
+| 比例 | ≤1供5 | 1供2 | ≥1供1 |
+| 折让 | ≤10% | 10-20% | >20% |
+| 包销 | 全额包销 | 部分包销 | 无包销 |
+| 资金用途 | 具体项目 | 营运资金 | 偿还债务 |
+
+#### 供股决策树
+
 ```
 供股公告
 ├── 有包銷?
@@ -74,351 +105,351 @@ Financial engineering in Hong Kong stocks refers to corporate actions and market
     └── >20% → 可能是財技操作
 ```
 
-### 1.2 Placement (配股/配售)
+#### ⏰ 供股关键时间点
 
-**Definition**: Company issues new shares to selected investors at a discount.
+| # | 时间点 | 英文名称 | 核心意义 | 策略要点 |
+|---|--------|----------|----------|----------|
+| 1 | **宣布日** | Announcement | 公布供股计划 | 判断供关/供钱，大比例大折让第一口价卖出 |
+| 2 | **除权日** | Ex-Rights | 股价自动调整 | ⭐**最重要** 除权前买入有供股权，除权后无 |
+| 3 | **最后供款日** | Last Cum Day | 付款截止 | 必须在此前决定是否参与，券商截止更早 |
+| 4 | **认购结果公布日** | Allotment Results | 公布申请份数 | **30份以下** = 供关信号确认 |
+| 5 | **新股出炉日** | New Shares Listing | 新股上市 | 供关股票往往在此日开始上涨 |
 
-**Key Metrics to Extract:**
-- 配售股份數量 (Number of Shares)
-- 配售價 (Placement Price)
-- 較市價折讓 (Discount to Market)
-- 認購人 (Placees): Who are they?
-- 所得款項用途 (Use of Proceeds)
-- 禁售期 (Lock-up Period)
+#### 供关 vs 供钱 的时间策略
 
-**Placee Analysis:**
+| 策略 | 买入时机 | 卖出时机 | 条件 |
+|------|----------|----------|------|
+| **供关** | 阿龙公布后/确认无人供 | 出货信号出现（半年内） | 份数<30，股价贴近供股价 |
+| **供钱** | 除权日后1日（贴近供股价） | 最后供款日前1-2日 | 股价远高于供股价 |
 
-| Placee Type | Signal | Interpretation |
-|-------------|--------|----------------|
-| 知名基金 | Positive | Institutional endorsement |
-| 大股東關聯方 | Neutral/Negative | Possible circular arrangement |
-| 獨立第三方 | Depends | Check background |
-| 散戶配售商 | Negative | Often for distribution |
+### 1.2 拆股（Stock Split）
 
-**Red Flags:**
-- ❌ Discount >20% without clear reason
-- ❌ Placees are shell companies or unknown parties
-- ❌ No lock-up period
-- ❌ Proceeds for "general working capital" only
-- ❌ Frequent placements (3+ per year)
+**定义**：增加股份数量，按比例降低每股价格。
 
-### 1.3 Stock Split (拆股)
+**常见比例：** 1拆2、1拆5、1拆10
 
-**Definition**: Increase number of shares, reduce price per share proportionally.
+**目的分析：**
+- ✅ 正当：提高流动性，降低入场门槛
+- ⚠️ 可疑：合股后拆股
+- ❌ 操纵：配合以"新"价格配售
 
-**Common Ratios:** 1拆2, 1拆5, 1拆10
+### 1.3 合股（Reverse Split / Consolidation）
 
-**Purpose Analysis:**
-- ✅ Legitimate: Improve liquidity, lower entry barrier
-- ⚠️ Suspicious: Following consolidation (合股後拆股)
-- ❌ Manipulation: Combined with placement at "new" price
+**定义**：减少股份数量，按比例提高每股价格。
 
-### 1.4 Reverse Split / Consolidation (合股)
+**风险评估：**
 
-**Definition**: Reduce number of shares, increase price per share proportionally.
+| 比例 | 风险等级 | 常见目的 |
+|------|----------|----------|
+| 2合1 | 低 | 行政性 |
+| 5合1 | 中 | 避免仙股 |
+| 10合1 | 高 | 股价操纵准备 |
+| 20合1+ | 非常高 | 即将大幅稀释 |
 
-**Risk Assessment:**
-
-| Ratio | Risk Level | Common Purpose |
-|-------|------------|----------------|
-| 2合1 | Low | Administrative |
-| 5合1 | Medium | Avoid penny stock |
-| 10合1 | High | Price manipulation setup |
-| 20合1+ | Very High | Severe dilution incoming |
-
-**Warning Pattern: 合股 → 配股 → 拆股**
+**警告模式：合股 → 配股 → 拆股**
 ```
-Step 1: 10合1 (Price: $0.10 → $1.00)
-Step 2: 配股 at $0.50 (50% discount "to $1.00")
-Step 3: 拆股 1拆5 (Price: $0.50 → $0.10)
-Result: Massive dilution, price back to start, capital raised
+步骤 1：10合1（价格：$0.10 → $1.00）
+步骤 2：配股价 $0.50（"相对 $1.00"折让50%）
+步骤 3：1拆5（价格：$0.50 → $0.10）
+结果：大幅稀释，价格回到起点，资金已筹集
 ```
 
-### 1.5 Capital Reduction (削減股本)
+### 1.4 削減股本（Capital Reduction）
 
-**Definition**: Reduce share capital, often to eliminate accumulated losses.
+**定义**：减少股本，通常是为了消除累计亏损。
 
-**Types:**
-1. **股份註銷**: Cancel shares (reduces total shares)
-2. **削減面值**: Reduce par value (accounting adjustment)
-3. **回購註銷**: Buyback and cancel
+**类型：**
+1. **股份註銷**：注销股份（减少总股数）
+2. **削減面值**：降低面值（会计调整）
+3. **回購註銷**：回购并注销
 
-**Purpose Analysis:**
-- Positive: Enable dividend payments (clear accumulated losses)
-- Neutral: Accounting cleanup
-- Negative: Preparation for further financial engineering
+### 1.5 送紅股（Bonus Issue）
+
+**定义**：从储备中向现有股东免费派发股份。
+
+**分析框架：**
+
+| 信号 | 解读 |
+|------|------|
+| 公司盈利豐厚 + 送紅股 | ✅ 正面：回饋股東 |
+| 股價高企 + 送紅股 | ✅ 正面：降低入場門檻 |
+| 無特別理由 + 送紅股 | ⚠️ 中性：可能為後續財技鋪路 |
+| 配合配股/供股 | ❌ 負面：可能為稀釋做準備 |
+
+### 1.6 分拆上市（Spin-off / Demerger）
+
+**课程观点："天生的好股票"**
+
+分拆上市往往是财技中的正面操作：
+1. 释放隐藏价值（子公司估值重估）
+2. 提高管理透明度
+3. 为股东创造选择权
+4. 母公司套现部分价值
+
+**投资策略:**
+
+| 階段 | 操作 | 理由 |
+|------|------|------|
+| 公告分拆 | 關注母公司 | 消息刺激 |
+| 分拆詳情公布 | 評估子公司價值 | 定價關鍵 |
+| 子公司上市前 | 考慮母公司 | 實物分派預期 |
+| 子公司上市後 | 觀察估值差 | 套利機會 |
 
 ---
 
-## Part 2: Shell Game Operations (買賣殼操作)
+## 第二部分：买卖壳操作
 
-### 2.1 General Offer (全購)
+### 2.1 全购（General Offer）
 
-**Definition**: Offer to acquire all shares at a fixed price.
+**定义**：以固定价格向全体股东发出收购要约。
 
-**Trigger Conditions (《收購守則》Rule 26):**
-- Acquirer crosses 30% threshold
-- Acquirer in 30-50% range and increases >2% in 12 months
+**触发条件（《收購守則》规则26）：**
+- 收购方跨越30%门槛
+- 收购方在30-50%范围内，12个月内增持 >2%
 
-**Key Analysis Points:**
-- 收購價 vs 現價: Premium or discount?
-- 強制性全面收購: Mandatory general offer triggered?
-- 收購條件: Conditions precedent
-- 最低接納水平: Minimum acceptance level
+**关键分析要点：**
+- 收購價 vs 現價：溢价还是折让？
+- 強制性全面收購：是否触发强制全面要约？
+- 收購條件：先决条件
+- 最低接納水平：最低接受比例
 
-### 2.2 Partial Offer (非全購)
+### 2.2 非全购（Partial Offer）
 
-**Definition**: Offer to acquire a portion of shares only.
+**定义**：仅对部分股份发出收购要约。
 
-**Key Characteristics:**
-- Usually for specific percentage (e.g., 20% of shares)
-- Requires 執行人員裁決 (Executive ruling)
-- Often signals intention for future full acquisition
+**关键特征：**
+- 通常针对特定百分比（例如20%的股份）
+- 需要執行人員裁決
+- 通常暗示未来可能进行全面收购
 
-**Analysis Points:**
-- Why partial instead of full?
-- Is this a prelude to control change?
-- Fair value assessment
+### 2.3 白武士重組（White Knight Rescue）
 
-### 2.3 White Knight Rescue (白武士重組)
+**定义**：新投资者拯救财务困难的公司。
 
-**Definition**: New investor rescues financially distressed company.
-
-**Opportunity Recognition (百倍股搖籃模式):**
+**机会识别（百倍股搖籃模式）：**
 
 ```
-Distressed Company State:
-├── 股價暴跌 (>80% from peak)
+困境公司状态：
+├── 股價暴跌（较高点 >80%）
 ├── 業務困難 / 債務危機
 ├── 停牌 or 除牌警告
 └── 大股東尋求白武士
 
-White Knight Entry:
-├── 注入新資產 (asset injection)
+白武士入场：
+├── 注入新資產（asset injection）
 ├── 削減股本清理帳目
 ├── 股本重組
 └── 新管理層入主
 
-Potential Outcome:
+潜在结果：
 ├── 成功重組 → 股價反彈數倍
 └── 失敗 → 除牌
 ```
 
-**Due Diligence Checklist:**
+**尽职调查清单：**
 - [ ] 白武士背景調查
 - [ ] 注入資產質量
 - [ ] 重組方案可行性
 - [ ] 監管機構態度
 - [ ] 時間表是否合理
 
-### 2.4 Backdoor Listing (啤殼上市)
+### 2.4 啤殼上市（Backdoor Listing）
 
-**Definition**: Private company acquires listed company to gain listing status.
+**定义**：私人公司收购上市公司以获得上市地位。
 
-**Key Indicators:**
-- 反向收購 (Reverse Takeover) announcement
-- Major asset injection
-- Complete change of business
-- New controlling shareholder
+**关键指标：**
+- 反向收購（Reverse Takeover）公告
+- 重大资产注入
+- 业务完全改变
+- 新控股股东
 
-**Regulatory Scrutiny:**
-- HKEX Rule 14.06B: Very Substantial Acquisition
-- Rule 14.54: Reverse takeover provisions
-- Possible trading suspension
-
----
-
-## Part 3: CCASS Advanced Analysis
-
-### 3.1 數街貨 (Counting Street Float)
-
-**Definition**: Calculate true free float by analyzing CCASS holdings.
-
-**Calculation Method:**
-```
-Street Float = Total Issued Shares - Locked Shares
-Where Locked Shares = Major Shareholders + Strategic Holders + CCASS Non-trading Participants
-```
-
-**Significance Thresholds:**
-- Street Float <20%: Easily manipulated
-- Street Float 20-40%: Tight supply
-- Street Float >40%: More liquid
-
-### 3.2 射倉 (Position Manipulation)
-
-**Definition**: Artificial movement of shares between CCASS accounts to create appearance of activity.
-
-**Detection Patterns:**
-
-| Pattern | Description | Signal |
-|---------|-------------|--------|
-| 對倒 | Same-day opposite movements | Possible wash trading |
-| 集中 | Multiple accounts → One account | Accumulation |
-| 分散 | One account → Multiple accounts | Distribution setup |
-| 輪轉 | Circular movements | Manipulation |
-
-**Alert Thresholds:**
-- Single participant change >5% in one day
-- Top 3 participants change >10% collectively
-- New participant appears with >3% immediately
-
-### 3.3 實物存入 (Physical Deposit)
-
-**Definition**: Transfer of physical share certificates into CCASS.
-
-**Analysis Points:**
-- Large physical deposit = Major holder entering market
-- Often precedes significant trading activity
-- May indicate upcoming placement or distribution
-
-**Workflow:**
-```
-Detect Physical Deposit > 2%
-├── Identify participant (broker type)
-├── Check recent announcements
-├── Monitor subsequent trading
-└── Assess: Accumulation or Distribution setup?
-```
-
-### 3.4 CCASS Anomaly Detection
-
-**Comprehensive Checklist:**
-- [ ] 單一經紀商持倉突變 (>3%)
-- [ ] 頭10大參與者變動 (>10% collective)
-- [ ] 新參與者大額進入 (>2%)
-- [ ] 實物存入/提取 (>1%)
-- [ ] 持倉集中度變化
+**监管审查：**
+- 港交所规则 14.06B：非常重大收购
+- 规则 14.54：反向收购条款
+- 可能停牌
 
 ---
 
-## Part 4: Trading Strategy Analysis
+## 第三部分：CCASS 分析 ⭐ **必须执行**
 
-### 4.1 向下炒 (Downward Manipulation)
+> **📖 详细工作流程和 MCP 工具调用**：请读取 `ccass-tracking` 技能
+> ```
+> read_file('{skills_dir}/ccass-tracking/SKILL.md')
+> ```
 
-**Definition**: Major shareholders profit by selling high, then buying back lower through capital reorganization.
+> **⚠️ 重要：CCASS 分析是财技分析的核心组成部分，必须包含在最终报告中！**
+> 
+> **什么时候进行 CCASS 分析？**
+> - ✅ **供股/配股分析**：必须分析供股前后的持仓变化
+> - ✅ **买卖壳分析**：必须追踪大股东和新投资者持仓
+> - ✅ **异常股价波动**：必须检测市场操纵信号
+> - ⚠️ **纯粹合股/拆股**：可选，如无异常可省略
+> 
+> **如果 MCP 不可用：** 在报告中明确说明"CCASS MCP 服务器未启用，无法提供持仓分析"
 
-**Pattern Recognition:**
+**本技能提供的补充框架**：
+
+### CCASS 异常信号快速检测
+
+| 信号类型 | 检测方法 | 意义 |
+|----------|----------|------|
+| 單一經紀商持倉突變 (>3%) | `get_broker_changes` | 大户动向 |
+| 頭10大參與者變動 (>10%) | `get_top_brokers` + `get_broker_changes` | 机构调仓 |
+| 新參與者大額進入 (>2%) | `get_broker_changes` | 新资金进入 |
+| 實物存入/提取 (>1%) | `get_broker_changes` | 大户准备交易 |
+| 持倉集中度變化 | `get_ownership_concentration` | 累积或派发 |
+
+### 射倉（Position Manipulation）检测模式
+
+| 模式 | 描述 | 信号 |
+|------|------|------|
+| 對倒 | 同日相反移动 | 可能是洗盘交易 |
+| 集中 | 多账户 → 一账户 | 累积 |
+| 分散 | 一账户 → 多账户 | 派发准备 |
+| 輪轉 | 循环移动 | 操纵 |
+
+---
+
+## 第四部分：交易策略分析
+
+### 4.1 向下炒（Downward Manipulation）
+
+**定义**：大股东通过高位卖出、然后通过资本重组低价买回获利。
+
+**模式识别：**
 ```
-Phase 1: Distribution
+阶段 1：派发
 ├── 大股東高位配售
 ├── 利好消息出貨
 └── CCASS持倉分散
 
-Phase 2: Price Decline
+阶段 2：股价下跌
 ├── 股價持續下跌
 ├── 成交量萎縮
 └── 負面消息/業績差
 
-Phase 3: Accumulation
+阶段 3：累积
 ├── 大折讓供股/配股
 ├── 大股東低位增持
 ├── 削減股本重組
 └── 資產注入
 
-Phase 4: Recovery
+阶段 4：恢复
 ├── 股價反彈
 ├── 大股東獲利
 └── 循環重複
 ```
 
-### 4.2 出貨的藝術 (Distribution Art)
+### 4.2 出貨的藝術（Distribution Art）
 
-**Definition**: Techniques used to sell large positions without crashing the price.
+**莊家散貨模型：**
 
-**莊家散貨模型 (Market Maker Distribution Model):**
+| 阶段 | 行动 | CCASS 信号 |
+|------|------|------------|
+| 1 | 製造利好 | 持仓稳定 |
+| 2 | 推高股價 | 轻微集中 |
+| 3 | 分批出貨 | 逐渐分散 |
+| 4 | 最後拉高 | 快速分散 |
+| 5 | 急跌 | 散户券商仓位重 |
 
-| Stage | Action | CCASS Signal |
-|-------|--------|--------------|
-| 1 | 製造利好 | Holdings stable |
-| 2 | 推高股價 | Slight concentration |
-| 3 | 分批出貨 | Gradual dispersion |
-| 4 | 最後拉高 | Rapid dispersion |
-| 5 | 急跌 | Retail brokers heavy |
+### 4.3 如何判轉勢？
 
-**Warning Signs:**
-- 高位放量不漲
-- 好消息不漲反跌
-- CCASS轉移到散戶經紀
-- 大股東減持公告
+**趨勢轉變的關鍵信號:**
 
-### 4.3 急跌博反彈 (Bounce Trading)
-
-**Entry Criteria (123 法則):**
-1. 急跌 >20% in ≤3 days
-2. 成交量放大 (Volume spike)
-3. 技術超賣 (RSI <30)
-
-**Risk Assessment:**
-- Check if fundamental reason exists
-- Check if major shareholder buying
-- Check CCASS for institutional accumulation
-- Set strict stop-loss (-10%)
+| 信號類型 | 上升轉下跌 | 下跌轉上升 |
+|---------|-----------|-----------|
+| 價格形態 | 頂部形態（頭肩頂、雙頂） | 底部形態（頭肩底、雙底） |
+| 成交量 | 高位放量滯漲 | 低位縮量企穩 |
+| CCASS | 大戶減持、散戶承接 | 大戶累積、散戶拋售 |
+| 公告 | 利好不漲、減持公告 | 利空不跌、增持公告 |
 
 ---
 
-## Analysis Process Workflow
+## 第五部分：投资心理学
 
-### Step 1: Announcement Classification
+### 5.1 鎖定效應（Anchoring Effect）
+
+**在財技分析中的應用:**
+
+| 錨點陷阱 | 正確思維 |
+|---------|---------|
+| "股價曾經 $10，現在 $1 很便宜" | 看現在的基本面，而非歷史價格 |
+| "折讓 20% 很吸引" | 折讓是相對什麼？合理價值是多少？ |
+| "供股價比市價低" | 供股後的理論價值才是真正參考 |
+| "大股東曾經 $5 買入" | 大股東的成本與你無關 |
+
+### 5.2 損失規避（Loss Aversion）
+
+**在財技分析中的影響:**
+
+| 損失規避行為 | 後果 | 正確做法 |
+|-------------|------|---------|
+| 不願止損離場 | 越蝕越多 | 設定止損點並執行 |
+| 跟隨供股避免攤薄 | 越買越多，風險集中 | 理性評估是否值得追加 |
+| 接受蝕本價配售 | 認為"拎少好過冇" | 計算真實價值再決定 |
+| 持有垃圾股等反彈 | 機會成本 | 認清現實，換馬 |
+
+---
+
+## 综合分析流程
+
+### 步骤 1：公告分类
 
 ```
 收到公告
 ├── 股本操作類
-│   ├── 供股 → 1.1 Rights Issue Analysis
-│   ├── 配股 → 1.2 Placement Analysis
-│   ├── 拆股 → 1.3 Split Analysis
-│   ├── 合股 → 1.4 Consolidation Analysis
-│   └── 股本重組 → Combined Analysis
+│   ├── 供股/配股 → 读取 hkex-announcement 技能
+│   ├── 拆股/合股 → 使用本技能 1.2/1.3 节
+│   └── 股本重組 → 综合分析
 ├── 收購合併類
-│   ├── 全面收購 → 2.1 General Offer
-│   ├── 部分收購 → 2.2 Partial Offer
-│   ├── 反向收購 → 2.4 Backdoor Listing
-│   └── 白武士 → 2.3 White Knight
+│   ├── 全面收購 → 2.1 全购
+│   ├── 部分收購 → 2.2 非全购
+│   ├── 反向收購 → 2.4 啤壳上市
+│   └── 白武士 → 2.3 白武士
 └── 持倉異動類
-    └── CCASS變動 → Part 3 Analysis
+    └── CCASS變動 → 读取 ccass-tracking 技能
 ```
 
-### Step 2: Data Extraction
+### 步骤 2：数据提取
 
-**For Corporate Actions:**
+**公告分析**：
 ```python
-# Search and download announcement
+# 读取 hkex-announcement 技能获取详细流程
 search_hkex_announcements(stock_code="XXXXX", from_date="YYYYMMDD", to_date="YYYYMMDD")
 download_announcement_pdf(news_id=..., pdf_url=..., stock_code=..., date_time=..., title=...)
-extract_pdf_content(pdf_path="[cached PDF path]")
+extract_pdf_content(pdf_path="[缓存的 PDF 路径]")
 ```
 
-**Key Fields to Extract:**
-- 股份數量 (Number of shares)
-- 價格 (Price)
-- 折讓/溢價 (Discount/Premium)
-- 認購人/收購方 (Subscriber/Acquirer)
-- 時間表 (Timetable)
-- 條件 (Conditions)
+**CCASS 分析**（需要 MCP 启用）：
+```python
+# 读取 ccass-tracking 技能获取 MCP 工具详细用法
+get_broker_holdings(stock_code="XXXXX")
+get_broker_changes(stock_code="XXXXX", days=7)
+get_ownership_concentration(stock_code="XXXXX")
+get_trend_analysis(stock_code="XXXXX", days=30)
+```
 
-### Step 3: Risk/Opportunity Assessment
+### 步骤 3：风险/机会评估
 
-**Scoring Framework:**
+**评分框架：**
 
-| Factor | Weight | Score Range |
-|--------|--------|-------------|
-| Discount Level | 25% | 1-5 (1=low, 5=high risk) |
-| Underwriting | 20% | 1-5 |
-| Placee Quality | 20% | 1-5 |
-| Use of Proceeds | 15% | 1-5 |
-| Major Shareholder Action | 20% | 1-5 |
+| 因素 | 权重 | 评分范围 |
+|------|------|----------|
+| 折让水平 | 25% | 1-5（1=低，5=高风险） |
+| 包销安排 | 20% | 1-5 |
+| 认购人质量 | 20% | 1-5 |
+| 资金用途 | 15% | 1-5 |
+| 大股东行动 | 20% | 1-5 |
 
-**Risk Classification:**
-- Total Score ≤2.0: Low Risk
-- Total Score 2.0-3.5: Medium Risk
-- Total Score >3.5: High Risk
+**风险分类：**
+- 总分 ≤2.0：低风险
+- 总分 2.0-3.5：中等风险
+- 总分 >3.5：高风险
 
-### Step 4: Generate Report
-
-**Report Template:**
+### 步骤 4：生成报告
 
 ```markdown
-# [Stock Code] 財技分析報告
+# [股票代码] 財技分析報告
 
 ## 基本信息
 - **股票代碼**: [code]
@@ -427,147 +458,116 @@ extract_pdf_content(pdf_path="[cached PDF path]")
 - **操作類型**: [type]
 
 ## 操作詳情
-[Extracted details in table format]
+[以表格格式提取的详情]
+
+## CCASS 持仓分析 ⭐ **必填项**
+
+> **📖 使用 `ccass-tracking` 技能获取完整分析流程**
+
+### 持仓概况
+
+| 指标 | 数值 | 说明 |
+|------|------|------|
+| **前10大券商持仓** | XX% | Top 10持仓集中度 |
+| **散户券商持仓** | XX% | 中小券商持仓比例 |
+| **7日变化** | +/-XX% | 近期持仓变动 |
+
+### 关键券商持仓变化
+
+| 券商编号 | 券商名称 | 持仓变化 | 变化幅度 | 信号 |
+|---------|---------|---------|---------|------|
+| CXXXXX | [券商名] | +XX股 | +XX% | [累积/派发] |
+| ... | ... | ... | ... | ... |
+
+### 异常信号检测
+
+- [ ] **持仓突变** (>3%单日变化)
+- [ ] **新大户进入** (新进前10大)
+- [ ] **机构调仓** (>10%头部券商变动)
+- [ ] **实物存入/提取** (>1%异常转移)
+- [ ] **对倒迹象** (同日相反移动)
+
+### CCASS 结论
+
+[根据持仓分析，判断市场动向：累积/派发/操纵/正常]
+
+> **注意**：如果 CCASS MCP 服务器未启用，请在此说明：
+> "❌ CCASS MCP 服务器未启用，无法提供实时持仓数据。建议手动访问港交所网站查询。"
 
 ## 風險評估
 | 因素 | 評分 | 說明 |
 |------|------|------|
 | 折讓水平 | X/5 | ... |
 | 包銷安排 | X/5 | ... |
-| 認購人質量 | X/5 | ... |
-| 資金用途 | X/5 | ... |
-| 大股東行動 | X/5 | ... |
-| **總評分** | **X.X/5** | **[Risk Level]** |
+| ... | ... | ... |
+| **總評分** | **X.X/5** | **[风险等级]** |
 
 ## 財技模式識別
-- [Pattern identified, if any]
-- [Historical comparison]
-
-## 市場影響分析
-- 股本攤薄: [X]%
-- 預期股價影響: [analysis]
-- 類似案例參考: [examples]
+- [识别到的模式，如有]
+- [历史比较]
 
 ## 投資建議
-- **短期**: [1-2 weeks outlook]
-- **中期**: [1-3 months outlook]
-- **風險提示**: [Key risks]
-
-## 附註
-- 數據來源: HKEX 公告
-- 分析日期: [date]
+- **短期**: [1-2 周展望]
+- **中期**: [1-3 个月展望]
+- **風險提示**: [关键风险]
 ```
 
-### Step 5: Save Report
+### 步骤 5：保存报告
 
 ```python
-# Use /md/ directory (project standard)
 write_file(
     path="/md/[stock_code]-財技分析-[date].md",
-    content="[Report content]"
+    content="[报告内容]"
 )
 ```
 
 ---
 
-## Best Practices
+## 最佳实践
 
-**Do's:**
-- ✅ Always cross-reference multiple announcements
-- ✅ Check historical pattern for the company
-- ✅ Analyze major shareholder track record
-- ✅ Monitor CCASS changes before and after announcements
-- ✅ Compare with industry peers
-- ✅ Consider regulatory environment
+**建议做的事：**
+- ✅ 始终交叉对比多份公告
+- ✅ 检查公司的历史模式
+- ✅ 分析大股东的过往记录
+- ✅ 监控公告前后的 CCASS 变化（使用 ccass-tracking 技能）
+- ✅ 与行业同业比较
 
-**Don'ts:**
-- ❌ Don't ignore small print conditions
-- ❌ Don't assume all placements are negative
-- ❌ Don't overlook related party transactions
-- ❌ Don't trade before understanding the full picture
-- ❌ Don't ignore historical financial engineering patterns
-
-## Common Pitfalls
-
-1. **Confirmation Bias**: Looking for evidence to support preconceived notion
-2. **Ignoring Context**: Not considering broader market conditions
-3. **Over-reliance on Single Indicator**: Missing the full picture
-4. **Timing Errors**: Acting before announcement is fully digested
-5. **Currency/Unit Confusion**: HK$ vs RMB vs USD, shares vs lots
-
-## Example Workflows
-
-### Example 1: Rights Issue Analysis
-
-**User Request**: "分析00XXX最新的供股公告"
-
-**Execution:**
-1. `date +%Y%m%d` to get current date
-2. `search_hkex_announcements(stock_code="00XXX", from_date=..., to_date=...)`
-3. Filter for "供股" in title
-4. `download_announcement_pdf(...)`
-5. `extract_pdf_content(...)`
-6. Extract: ratio, price, discount, underwriting, use of proceeds
-7. Apply risk assessment framework
-8. Check CCASS for recent changes
-9. Generate report using template
-10. `write_file("/md/00XXX-供股分析.md", ...)`
-
-### Example 2: Shell Game Detection
-
-**User Request**: "這間公司是否在進行買殼操作?"
-
-**Execution:**
-1. Search for recent announcements (3-6 months)
-2. Look for patterns:
-   - Major shareholder change
-   - Asset injection/disposal
-   - Business change
-   - Capital reorganization
-3. Check CCASS for unusual movements
-4. Compare with known shell game patterns
-5. Generate assessment report
-
-### Example 3: CCASS Anomaly Investigation
-
-**User Request**: "00XXX的CCASS今天有大變動，是什麼情況?"
-
-**Execution:**
-1. Fetch CCASS data (if MCP available)
-2. Identify top movers
-3. Check participant types
-4. Cross-reference with announcements
-5. Check for physical deposits/withdrawals
-6. Apply anomaly detection patterns
-7. Generate analysis report
+**避免做的事：**
+- ❌ 不要忽视小字条款
+- ❌ 不要假设所有配售都是负面的
+- ❌ 不要忽略关联方交易
+- ❌ 在完全理解全貌之前不要交易
+- ❌ 不要忽视历史财技模式
 
 ---
 
-## Reference: Key Terms Glossary
+## 参考：关键术语词汇表
 
-| Chinese | English | Description |
-|---------|---------|-------------|
-| 供股 | Rights Issue | Offer to existing shareholders |
-| 配股 | Placement | Issue to selected investors |
-| 拆股 | Stock Split | Increase shares, reduce price |
-| 合股 | Consolidation | Reduce shares, increase price |
-| 削減股本 | Capital Reduction | Reduce share capital |
-| 買殼 | Shell Acquisition | Buy listed company for status |
-| 賣殼 | Shell Sale | Sell listed company |
-| 白武士 | White Knight | Rescuing investor |
-| 啤殼 | Backdoor Listing | RTO for listing |
-| 全購 | General Offer | Offer for all shares |
-| 數街貨 | Street Float | Count free float |
-| 射倉 | Position Manipulation | Artificial CCASS movement |
-| 實物存入 | Physical Deposit | Certificate to CCASS |
-| 向下炒 | Downward Manipulation | Profit from decline |
-| 出貨 | Distribution | Selling large positions |
+| 中文 | 英文 | 描述 |
+|------|------|------|
+| 供股 | Rights Issue | 向现有股东发售 |
+| 配股 | Placement | 向选定投资者发行 |
+| 拆股 | Stock Split | 增加股数，降低价格 |
+| 合股 | Consolidation | 减少股数，提高价格 |
+| 削減股本 | Capital Reduction | 减少股本 |
+| 送紅股 | Bonus Issue | 从储备中免费派发股份 |
+| 分拆上市 | Spin-off / Demerger | 子公司独立上市 |
+| 買殼 | Shell Acquisition | 购买上市公司获取上市地位 |
+| 賣殼 | Shell Sale | 出售上市公司 |
+| 白武士 | White Knight | 拯救投资者 |
+| 啤殼 | Backdoor Listing | 反向收购上市 |
+| 全購 | General Offer | 收购全部股份的要约 |
+| 非全購 | Partial Offer | 收购部分股份的要约 |
+| 數街貨 | Street Float | 计算流通股 |
+| 射倉 | Position Manipulation | 人为的 CCASS 转移 |
+| 實物存入 | Physical Deposit | 证书转入 CCASS |
+| 向下炒 | Downward Manipulation | 从下跌中获利 |
+| 出貨 | Distribution | 卖出大量持仓 |
 
 ---
 
-## Related Skills
+## 相关技能
 
-- **hkex-announcement**: For basic announcement extraction and analysis
-- **ccass-tracking**: For detailed CCASS monitoring over time
-- **financial-metrics**: For fundamental analysis to support financial engineering assessment
-
+- **hkex-announcement**：公告提取和配售/供股/业绩基础分析
+- **ccass-tracking**：详细的 CCASS 持仓监控和 MCP 工具调用
+- **financial-metrics**：财务指标计算和估值分析

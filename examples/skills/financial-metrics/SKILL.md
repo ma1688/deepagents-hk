@@ -1,242 +1,242 @@
 ---
 name: financial-metrics
-description: Calculate and analyze financial metrics from HKEX announcements (results, reports)
+description: 从港交所公告（业绩、报告）中计算和分析财务指标 - 可独立使用，也被 hkex-financial-engineering 技能引用
 ---
 
-# Financial Metrics Analysis Skill
+# 财务指标分析技能
 
-## When to Use This Skill
+## 何时使用此技能
 
-Use this skill when you need to:
-- Analyze interim/annual financial results
-- Calculate valuation metrics
-- Compare financial performance across periods
-- Benchmark against industry peers
-- Identify financial trends and anomalies
+当您需要以下操作时，请使用此技能：
+- 分析中期/年度财务业绩
+- 计算估值指标
+- 比较各期财务表现
+- 与行业同业对标
+- 识别财务趋势和异常
 
-## Key Financial Metrics Categories
+## 关键财务指标类别
 
-### 1. Valuation Metrics
+### 1. 估值指标
 
-**Price-to-Earnings (P/E Ratio)**
-- Formula: Market Price / Earnings Per Share
-- Interpretation: Lower = cheaper, Higher = growth premium
-- Benchmark: Compare to industry average
+**市盈率（P/E Ratio）**
+- 公式：市场价格 / 每股收益
+- 解读：越低 = 越便宜，越高 = 成长溢价
+- 基准：与行业平均值比较
 
-**Price-to-Book (P/B Ratio)**
-- Formula: Market Price / Book Value Per Share
-- Interpretation: <1 = trading below book value
-- Benchmark: Compare to historical P/B
+**市净率（P/B Ratio）**
+- 公式：市场价格 / 每股账面价值
+- 解读：<1 = 低于账面价值交易
+- 基准：与历史市净率比较
 
-**EV/EBITDA**
-- Formula: (Market Cap + Debt - Cash) / EBITDA
-- Interpretation: Capital structure-adjusted valuation
-- Benchmark: Industry comparison
+**企业价值倍数（EV/EBITDA）**
+- 公式：（市值 + 债务 - 现金）/ EBITDA
+- 解读：调整资本结构后的估值
+- 基准：行业比较
 
-**Dividend Yield**
-- Formula: Annual Dividend / Share Price × 100%
-- Interpretation: Income return for investors
-- Benchmark: Risk-free rate, peer comparison
+**股息率**
+- 公式：年度股息 / 股价 × 100%
+- 解读：投资者的收入回报
+- 基准：无风险利率、同业比较
 
-### 2. Profitability Metrics
+### 2. 盈利能力指标
 
-**Gross Profit Margin**
-- Formula: Gross Profit / Revenue × 100%
-- Interpretation: Product pricing power
-- Trend: Rising = improving efficiency
+**毛利率**
+- 公式：毛利 / 收入 × 100%
+- 解读：产品定价能力
+- 趋势：上升 = 效率提升
 
-**Operating Margin**
-- Formula: Operating Profit / Revenue × 100%
-- Interpretation: Core business profitability
-- Trend: Key operational health indicator
+**营业利润率**
+- 公式：营业利润 / 收入 × 100%
+- 解读：核心业务盈利能力
+- 趋势：关键运营健康指标
 
-**Net Profit Margin**
-- Formula: Net Profit / Revenue × 100%
-- Interpretation: Bottom-line efficiency
-- Benchmark: Industry comparison
+**净利率**
+- 公式：净利润 / 收入 × 100%
+- 解读：底线效率
+- 基准：行业比较
 
-**Return on Equity (ROE)**
-- Formula: Net Income / Shareholders' Equity × 100%
-- Interpretation: Return generated for shareholders
-- Benchmark: >15% is generally good
+**净资产收益率（ROE）**
+- 公式：净利润 / 股东权益 × 100%
+- 解读：为股东创造的回报
+- 基准：>15% 通常良好
 
-**Return on Assets (ROA)**
-- Formula: Net Income / Total Assets × 100%
-- Interpretation: Asset utilization efficiency
-- Benchmark: Industry-specific
+**总资产收益率（ROA）**
+- 公式：净利润 / 总资产 × 100%
+- 解读：资产利用效率
+- 基准：因行业而异
 
-### 3. Growth Metrics
+### 3. 成长指标
 
-**Revenue Growth (YoY)**
-- Formula: (Current Revenue - Prior Revenue) / Prior Revenue × 100%
-- Interpretation: Top-line expansion
-- Benchmark: GDP growth, industry growth
+**收入增长（同比）**
+- 公式：（当期收入 - 上期收入）/ 上期收入 × 100%
+- 解读：营收扩张
+- 基准：GDP 增长、行业增长
 
-**Profit Growth (YoY)**
-- Formula: (Current Profit - Prior Profit) / Prior Profit × 100%
-- Interpretation: Bottom-line expansion
-- Benchmark: Revenue growth (leverage effect)
+**利润增长（同比）**
+- 公式：（当期利润 - 上期利润）/ 上期利润 × 100%
+- 解读：底线扩张
+- 基准：收入增长（杠杆效应）
 
-**EPS Growth**
-- Formula: (Current EPS - Prior EPS) / Prior EPS × 100%
-- Interpretation: Per-share profit growth
-- Benchmark: Market expectations
+**每股收益增长**
+- 公式：（当期 EPS - 上期 EPS）/ 上期 EPS × 100%
+- 解读：每股利润增长
+- 基准：市场预期
 
-**Quarter-over-Quarter (QoQ) Growth**
-- Compare Q1 vs Q2, Q2 vs Q3, etc.
-- Seasonality-adjusted if needed
+**环比增长（QoQ）**
+- 比较 Q1 vs Q2、Q2 vs Q3 等
+- 必要时进行季节性调整
 
-### 4. Leverage Metrics
+### 4. 杠杆指标
 
-**Debt-to-Equity Ratio**
-- Formula: Total Debt / Total Equity
-- Interpretation: Financial leverage
-- Benchmark: <1.0 conservative, >2.0 aggressive
+**资产负债率**
+- 公式：总债务 / 总权益
+- 解读：财务杠杆
+- 基准：<1.0 保守，>2.0 激进
 
-**Interest Coverage Ratio**
-- Formula: EBIT / Interest Expense
-- Interpretation: Ability to service debt
-- Benchmark: >3.0 is comfortable
+**利息保障倍数**
+- 公式：息税前利润 / 利息费用
+- 解读：偿债能力
+- 基准：>3.0 较为舒适
 
-**Net Gearing**
-- Formula: (Total Debt - Cash) / Equity × 100%
-- Interpretation: Net debt position
-- Benchmark: Negative = net cash
+**净负债率**
+- 公式：（总债务 - 现金）/ 权益 × 100%
+- 解读：净债务状况
+- 基准：负数 = 净现金
 
-### 5. Liquidity Metrics
+### 5. 流动性指标
 
-**Current Ratio**
-- Formula: Current Assets / Current Liabilities
-- Interpretation: Short-term liquidity
-- Benchmark: >1.0 is healthy
+**流动比率**
+- 公式：流动资产 / 流动负债
+- 解读：短期流动性
+- 基准：>1.0 健康
 
-**Quick Ratio**
-- Formula: (Current Assets - Inventory) / Current Liabilities
-- Interpretation: Immediate liquidity
-- Benchmark: >1.0 is good
+**速动比率**
+- 公式：（流动资产 - 存货）/ 流动负债
+- 解读：即时流动性
+- 基准：>1.0 良好
 
-## Analysis Process
+## 分析流程
 
-### Step 1: Download Financial Results
+### 步骤 1：下载财务业绩
 
-1. **Search for results announcements**:
+1. **搜索业绩公告**：
 ```
-# First get current date
+# 首先获取当前日期
 date +%Y%m%d
 
-# Then search (use from_date/to_date, NOT start_date/end_date)
+# 然后搜索（使用 from_date/to_date，而非 start_date/end_date）
 search_hkex_announcements(
     stock_code="00700",
     from_date="20250101",
     to_date="20251231"
 )
-# Note: Filter by "業績" or "业绩" in title manually from results
+# 注意：手动从结果中筛选标题包含"業績"或"业绩"的公告
 ```
 
-2. **Download PDF**:
+2. **下载 PDF**：
 ```
 download_announcement_pdf(
-    news_id="[NEWS_ID from search results]",
-    pdf_url="[PDF_URL from search results]",
+    news_id="[搜索结果中的 NEWS_ID]",
+    pdf_url="[搜索结果中的 PDF_URL]",
     stock_code="00700",
-    date_time="[DATE_TIME from search results]",
-    title="[TITLE from search results]"
+    date_time="[搜索结果中的 DATE_TIME]",
+    title="[搜索结果中的 TITLE]"
 )
 ```
 
-### Step 2: Extract Financial Data
+### 步骤 2：提取财务数据
 
-1. **Extract tables** (financial statements are in tables):
+1. **提取表格**（财务报表在表格中）：
 ```
-extract_pdf_content(pdf_path="[PDF path]")
-# Focus on tables - balance sheet, income statement, cash flow
+extract_pdf_content(pdf_path="[PDF 路径]")
+# 重点关注表格 - 资产负债表、损益表、现金流量表
 ```
 
-2. **Key sections to find**:
-   - Consolidated Income Statement (綜合損益表)
-   - Consolidated Balance Sheet (綜合資產負債表)
-   - Consolidated Cash Flow Statement (綜合現金流量表)
-   - Financial Highlights (財務摘要)
+2. **需要查找的关键章节**：
+   - 综合损益表（Consolidated Income Statement）
+   - 综合资产负债表（Consolidated Balance Sheet）
+   - 综合现金流量表（Consolidated Cash Flow Statement）
+   - 财务摘要（Financial Highlights）
 
-### Step 3: Parse Financial Figures
+### 步骤 3：解析财务数据
 
-**Income Statement (損益表):**
-- Revenue (收入/營業額)
-- Cost of Sales (銷售成本)
-- Gross Profit (毛利)
-- Operating Profit (營業溢利)
-- Profit Before Tax (除稅前溢利)
-- Income Tax (所得稅)
-- Net Profit (純利/淨利潤)
-- EPS (每股盈利)
+**损益表：**
+- 收入（Revenue / 營業額）
+- 销售成本（Cost of Sales / 銷售成本）
+- 毛利（Gross Profit / 毛利）
+- 营业利润（Operating Profit / 營業溢利）
+- 税前利润（Profit Before Tax / 除稅前溢利）
+- 所得税（Income Tax / 所得稅）
+- 净利润（Net Profit / 純利/淨利潤）
+- 每股收益（EPS / 每股盈利）
 
-**Balance Sheet (資產負債表):**
-- Total Assets (總資產)
-- Current Assets (流動資產)
-- Total Liabilities (總負債)
-- Current Liabilities (流動負債)
-- Total Equity (權益總額)
-- Cash and Cash Equivalents (現金及現金等價物)
+**资产负债表：**
+- 总资产（Total Assets / 總資產）
+- 流动资产（Current Assets / 流動資產）
+- 总负债（Total Liabilities / 總負債）
+- 流动负债（Current Liabilities / 流動負債）
+- 权益总额（Total Equity / 權益總額）
+- 现金及现金等价物（Cash and Cash Equivalents / 現金及現金等價物）
 
-**Cash Flow Statement (現金流量表):**
-- Operating Cash Flow (經營活動現金流)
-- Investing Cash Flow (投資活動現金流)
-- Financing Cash Flow (融資活動現金流)
-- Net Cash Flow (現金淨變動)
+**现金流量表：**
+- 经营活动现金流（Operating Cash Flow / 經營活動現金流）
+- 投资活动现金流（Investing Cash Flow / 投資活動現金流）
+- 融资活动现金流（Financing Cash Flow / 融資活動現金流）
+- 现金净变动（Net Cash Flow / 現金淨變動）
 
-### Step 4: Calculate Metrics
+### 步骤 4：计算指标
 
-Create a metrics calculation workflow:
+创建指标计算工作流程：
 
 ```python
-# Example calculation structure (not executable, for reference)
+# 示例计算结构（仅供参考，非可执行代码）
 metrics = {
-    "Profitability": {
-        "Gross Margin": gross_profit / revenue * 100,
-        "Operating Margin": operating_profit / revenue * 100,
-        "Net Margin": net_profit / revenue * 100,
+    "盈利能力": {
+        "毛利率": gross_profit / revenue * 100,
+        "营业利润率": operating_profit / revenue * 100,
+        "净利率": net_profit / revenue * 100,
         "ROE": net_profit / equity * 100,
         "ROA": net_profit / assets * 100,
     },
-    "Growth": {
-        "Revenue Growth YoY": (revenue - revenue_ly) / revenue_ly * 100,
-        "Profit Growth YoY": (net_profit - net_profit_ly) / net_profit_ly * 100,
-        "EPS Growth YoY": (eps - eps_ly) / eps_ly * 100,
+    "成长性": {
+        "收入增长 YoY": (revenue - revenue_ly) / revenue_ly * 100,
+        "利润增长 YoY": (net_profit - net_profit_ly) / net_profit_ly * 100,
+        "EPS增长 YoY": (eps - eps_ly) / eps_ly * 100,
     },
-    "Leverage": {
-        "Debt/Equity": total_debt / equity,
-        "Interest Coverage": ebit / interest_expense,
-        "Net Gearing": (total_debt - cash) / equity * 100,
+    "杠杆": {
+        "资产负债率": total_debt / equity,
+        "利息保障倍数": ebit / interest_expense,
+        "净负债率": (total_debt - cash) / equity * 100,
     },
-    "Liquidity": {
-        "Current Ratio": current_assets / current_liabilities,
-        "Quick Ratio": (current_assets - inventory) / current_liabilities,
+    "流动性": {
+        "流动比率": current_assets / current_liabilities,
+        "速动比率": (current_assets - inventory) / current_liabilities,
     }
 }
 ```
 
-### Step 5: Benchmark and Compare
+### 步骤 5：对标和比较
 
-**Compare against:**
-1. **Historical performance**: Company's own past results
-2. **Industry peers**: Similar companies in same sector
-3. **Market averages**: Hang Seng Index or sector index
-4. **Analyst expectations**: Consensus estimates (if available)
+**比较对象：**
+1. **历史表现**：公司自身过去的业绩
+2. **行业同业**：同行业类似公司
+3. **市场平均**：恒生指数或行业指数
+4. **分析师预期**：共识预测（如有）
 
-**Key questions:**
-- Are margins improving or declining?
-- Is growth accelerating or decelerating?
-- Is leverage increasing (risk) or decreasing (deleveraging)?
-- Are returns improving (efficiency gains)?
+**关键问题：**
+- 利润率在改善还是下降？
+- 增长在加速还是放缓？
+- 杠杆在增加（风险）还是减少（去杠杆）？
+- 回报在改善（效率提升）吗？
 
-### Step 6: Generate Analysis Report
+### 步骤 6：生成分析报告
 
-Create a comprehensive financial analysis:
+创建全面的财务分析：
 
 ```markdown
-# 财务指标分析 - [Company Name] ([Stock Code])
+# 财务指标分析 - [公司名称] ([股票代码])
 
-## 报告期: [Period]
+## 报告期: [期间]
 
 ---
 
@@ -268,7 +268,7 @@ Create a comprehensive financial analysis:
 | P/E Ratio | [X] | [Y] | [高/低/合理] |
 | P/B Ratio | [X] | [Y] | [高/低/合理] |
 | EV/EBITDA | [X] | [Y] | [高/低/合理] |
-| Dividend Yield | [X]% | [Y]% | [高/低/合理] |
+| 股息率 | [X]% | [Y]% | [高/低/合理] |
 
 ---
 
@@ -330,81 +330,80 @@ Create a comprehensive financial analysis:
 ## 🎯 综合评价
 
 ### 优势
-1. [Strength 1]
-2. [Strength 2]
+1. [优势 1]
+2. [优势 2]
 
 ### 风险
-1. [Risk 1]
-2. [Risk 2]
+1. [风险 1]
+2. [风险 2]
 
 ### 投资建议
-[Investment recommendation based on analysis]
+[基于分析的投资建议]
 
 ---
 
 ## 📎 数据来源
-- 公告日期: [Date]
+- 公告日期: [日期]
 - 报告链接: [URL]
 ```
 
-### Step 7: Save Analysis
+### 步骤 7：保存分析
 
 ```
-# Use /md/ directory (project standard)
+# 使用 /md/ 目录（项目标准）
 write_file(
     path="/md/[stock_code]-财务分析-[period].md",
-    content="[Report content]"
+    content="[报告内容]"
 )
 ```
 
-## Best Practices
+## 最佳实践
 
-**Do's:**
-- ✅ Always compare with prior period
-- ✅ Calculate both absolute and percentage changes
-- ✅ Consider seasonality (Q4 vs Q1 may differ naturally)
-- ✅ Read management discussion for context
-- ✅ Note any one-off items or extraordinary items
-- ✅ Check accounting policies for changes
+**建议做的事：**
+- ✅ 始终与上期比较
+- ✅ 计算绝对值和百分比变化
+- ✅ 考虑季节性（Q4 与 Q1 可能自然不同）
+- ✅ 阅读管理层讨论以了解背景
+- ✅ 注意任何一次性项目或非经常性项目
+- ✅ 检查会计政策是否有变化
 
-**Don'ts:**
-- ❌ Don't ignore footnotes (they contain critical info)
-- ❌ Don't compare different currency figures directly
-- ❌ Don't forget about share dilution effects
-- ❌ Don't overlook non-recurring items
-- ❌ Don't use outdated market prices for valuations
+**避免做的事：**
+- ❌ 不要忽视附注（它们包含关键信息）
+- ❌ 不要直接比较不同货币的数字
+- ❌ 不要忘记股份稀释效应
+- ❌ 不要忽略非经常性项目
+- ❌ 不要使用过时的市场价格进行估值
 
-## Common Pitfalls
+## 常见陷阱
 
-1. **Currency mix-up**: Some companies report in RMB, others in HK$
-2. **Unit confusion**: Millions (百萬) vs Thousands (千) vs Actual
-3. **Adjusted vs Reported**: Some metrics are adjusted (non-GAAP)
-4. **Discontinued operations**: May distort comparisons
-5. **Share splits**: Adjust historical EPS accordingly
+1. **货币混淆**：一些公司以人民币报告，其他以港元报告
+2. **单位混淆**：百萬 vs 千 vs 实际数字
+3. **调整与报告**：一些指标是调整后的（非 GAAP）
+4. **终止经营**：可能扭曲比较
+5. **股票拆分**：相应调整历史 EPS
 
-## Example Workflow
+## 示例工作流程
 
-**User Request**: "分析00700最新业绩公告的财务指标"
+**用户请求**："分析00700最新业绩公告的财务指标"
 
-**Execution Steps:**
-1. Get current date: `date +%Y%m%d`
-2. Search for latest results: `search_hkex_announcements(stock_code="00700", from_date="20241120", to_date="20251120")`
-3. Filter results for "業績" or "业绩" in title
-4. Download PDF: `download_announcement_pdf(news_id=..., pdf_url=..., stock_code="00700", date_time=..., title=...)`
-5. Extract financial statements: `extract_pdf_content([PDF path])`
-6. Parse key figures from tables
-7. Calculate all metrics (profitability, growth, leverage, liquidity)
-8. Compare with prior period
-9. Write comprehensive report: `write_file("/md/00700-财务分析.md", [content])`
-10. Present key findings to user
+**执行步骤：**
+1. 获取当前日期：`date +%Y%m%d`
+2. 搜索最新业绩：`search_hkex_announcements(stock_code="00700", from_date="20241120", to_date="20251120")`
+3. 筛选标题中包含"業績"或"业绩"的结果
+4. 下载 PDF：`download_announcement_pdf(news_id=..., pdf_url=..., stock_code="00700", date_time=..., title=...)`
+5. 提取财务报表：`extract_pdf_content([PDF 路径])`
+6. 从表格中解析关键数据
+7. 计算所有指标（盈利能力、成长性、杠杆、流动性）
+8. 与上期比较
+9. 写入综合报告：`write_file("/md/00700-财务分析.md", [内容])`
+10. 向用户展示主要发现
 
-## Supporting Scripts
+## 辅助脚本
 
-Optional helper scripts:
-- `extract_financials.py`: Parse financial statements from PDF
-- `calculate_metrics.py`: Automated metric calculation
-- `benchmark.py`: Compare against industry/peers
-- `visualize.py`: Generate charts (requires matplotlib)
+可选辅助脚本：
+- `extract_financials.py`：从 PDF 解析财务报表
+- `calculate_metrics.py`：自动化指标计算
+- `benchmark.py`：与行业/同业比较
+- `visualize.py`：生成图表（需要 matplotlib）
 
-Place scripts in: `~/.hkex-agent/[agent]/skills/financial-metrics/`
-
+将脚本放置在：`~/.hkex-agent/[agent]/skills/financial-metrics/`

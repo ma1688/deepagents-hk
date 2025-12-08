@@ -6,6 +6,7 @@ import sys
 import termios
 import tty
 
+import httpx
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import Command
 from rich import box
@@ -195,7 +196,7 @@ def prompt_for_tool_approval(action_request: dict, assistant_id: str | None) -> 
 
 
 async def reliable_astream(agent, *args, **kwargs):
-    """Wrapper around agent.astream with retry logic for empty generations."""
+    """Wrapper around agent.astream with retry logic for empty generations and connection errors."""
     max_retries = 10
     retry_delay = 1.0
     attempt = 0
@@ -207,6 +208,23 @@ async def reliable_astream(agent, *args, **kwargs):
                 has_yielded = True
                 yield chunk
             return
+        except httpx.RemoteProtocolError as e:
+            # Handle connection errors (e.g., "peer closed connection without sending complete message body")
+            # This happens when the API server closes the connection mid-stream
+            error_msg = str(e).lower()
+            if "peer closed" in error_msg or "incomplete" in error_msg:
+                if has_yielded:
+                    console.print(f"\n[dim yellow]⚠️ Connection interrupted after partial output. Resuming...[/dim yellow]")
+                    attempt = 0  # Reset attempt counter
+                    await asyncio.sleep(retry_delay)
+                    continue
+
+                if attempt < max_retries - 1:
+                    attempt += 1
+                    console.print(f"\n[dim yellow]⚠️ Connection error. Retrying ({attempt}/{max_retries})...[/dim yellow]")
+                    await asyncio.sleep(retry_delay * attempt)  # Exponential backoff
+                    continue
+            raise e
         except ValueError as e:
             # Handle LangChain stream errors (e.g., "No generations found in stream")
             # This usually means the API returned an empty response/finished with a safety filter
@@ -728,6 +746,30 @@ async def execute_task(
             console.print()
         else:
             console.print(f"\n[red]❌ Error: {error_msg}[/red]\n")
+
+        return
+
+    except httpx.RemoteProtocolError as e:
+        # Handle connection errors that escape the reliable_astream wrapper
+        if spinner_active:
+            status.stop()
+
+        error_msg = str(e)
+        console.print()
+        console.print(
+            f"[red]❌ Error: {error_msg}[/red]"
+        )
+        console.print(
+            "[dim]The API server closed the connection unexpectedly.[/dim]"
+        )
+        console.print(
+            "[dim]Possible causes: Server timeout, rate limiting, or network issues.[/dim]"
+        )
+        console.print(
+            "[dim]Try: 1) Retry the request, 2) Use /clear to reset context, "
+            "3) Check your SILICONFLOW_API_TIMEOUT setting.[/dim]"
+        )
+        console.print()
 
         return
 

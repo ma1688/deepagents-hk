@@ -7,7 +7,12 @@
 
 基于 Deep Agents 框架开发的港股交易数据分析智能代理系统，专门用于处理港交所公告、PDF 文档解析和智能摘要生成。
 
-**最近更新** (2025-12-05):
+**最近更新** (2025-12-08):
+- ⭐ **CCASS分析增强**：财技分析报告强制包含CCASS持仓分析，报告模板详细化
+- 🎯 **Skills优化**：重构`hkex-financial-engineering`技能，消除冗余，建立引用关系（-55%代码）
+- 📋 **提示词优化**：明确财技分析5大必填部分（基本信息、操作详情、CCASS、风险评估、投资建议）
+
+**历史更新** (2025-12-05):
 - 🧭 **架构图刷新**：新增 Context Monitor + Project Utils 节点，梳理子代理/中间件/存储路由
 - 🛠️ **Project Utils**：CLI 启动时自动检测 `.hkex-agent` / `.git`，解析 `agent_dir` 与项目根
 - 👀 **上下文监控**：独立 Context Monitor 组件，继续支持 `--show-thinking` / `Ctrl+O` / `Ctrl+T`

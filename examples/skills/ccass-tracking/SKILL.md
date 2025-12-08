@@ -1,225 +1,252 @@
 ---
 name: ccass-tracking
-description: Track and analyze CCASS (Central Clearing and Settlement System) participant holdings over time
+description: 追踪和分析 CCASS（中央结算系统）参与者持仓随时间的变化 - 可独立使用，也被 hkex-financial-engineering 技能引用
 ---
 
-# CCASS Tracking Skill
+# CCASS 持仓追踪技能
 
-## When to Use This Skill
+## 何时使用此技能
 
-Use this skill when you need to:
-- Track institutional holdings via CCASS
-- Analyze broker position changes
-- Identify accumulation/distribution patterns
-- Monitor major shareholder movements
-- Detect unusual trading activities
+当您需要以下操作时，请使用此技能：
+- 通过 CCASS 追踪机构持仓
+- 分析券商持仓变化
+- 识别累积/派发模式
+- 监控主要股东动向
+- 检测异常交易活动
 
-## Background: What is CCASS?
+## 背景：什么是 CCASS？
 
-CCASS (中央結算系統) is the Central Clearing and Settlement System operated by HKEX. It shows holdings by:
-- **Participant IDs**: Broker codes (e.g., C00001, B01234)
-- **Participant Names**: Broker names (e.g., HSBC, Goldman Sachs)
-- **Holdings**: Number of shares held
-- **Percentage**: % of total issued shares
+CCASS（中央結算系統）是港交所运营的中央结算系统。它显示以下持仓信息：
+- **参与者编号**：券商代码（例如，C00001、B01234）
+- **参与者名称**：券商名称（例如，汇丰、高盛）
+- **持仓数量**：持有的股份数量
+- **持仓比例**：占总发行股本的百分比
 
-## Data Sources
+## 数据来源
 
-### 1. CCASS MCP Server (Preferred)
-If the CCASS MCP server is enabled, use it for live data:
+### 1. CCASS MCP 服务器（首选）
+
+如果启用了 CCASS MCP 服务器，请使用以下工具获取实时数据：
+
+**可用 MCP 工具一览：**
+
+| 工具名称 | 功能 | 调用示例 |
+|----------|------|----------|
+| `get_broker_holdings` | 获取券商持仓数据 | `get_broker_holdings(stock_code="00442")` |
+| `get_ownership_concentration` | 股权集中度分析 | `get_ownership_concentration(stock_code="00442")` |
+| `get_trend_analysis` | 持仓趋势分析 | `get_trend_analysis(stock_code="00442", days=30)` |
+| `get_top_brokers` | 持仓最多的券商 | `get_top_brokers(stock_code="00442", top_n=10)` |
+| `get_broker_changes` | 券商持仓变化 | `get_broker_changes(stock_code="00442", days=7)` |
+
+**完整使用流程：**
+```python
+# 1. 获取当前持仓分布
+holdings = get_broker_holdings(stock_code="00442")
+
+# 2. 获取近期变化（检测异动）
+changes = get_broker_changes(stock_code="00442", days=7)
+
+# 3. 获取股权集中度
+concentration = get_ownership_concentration(stock_code="00442")
+
+# 4. 获取趋势分析
+trend = get_trend_analysis(stock_code="00442", days=30)
+
+# 5. 获取前N大券商
+top_brokers = get_top_brokers(stock_code="00442", top_n=10)
 ```
-# Check if MCP is available
-ls ~/.hkex-agent/[agent]/mcp_servers/
 
-# Use CCASS query tool (if available)
-# This is automatically loaded when enable_mcp=True
+**检查 MCP 是否可用：**
+```
+# 使用 /mcp list 命令检查可用工具
+# 当 enable_mcp=True 时会自动加载
 ```
 
-### 2. Web Scraping (Fallback)
-If MCP is not available, fetch from HKEX website:
-- URL: `https://www.hkexnews.hk/sdw/search/stocklist_c.aspx`
-- Manual data extraction required
+### 2. 网页抓取（备选）
+如果 MCP 不可用，从港交所网站获取数据：
+- 网址：`https://www.hkexnews.hk/sdw/search/stocklist_c.aspx`
+- 需要手动提取数据
 
-### 3. Historical Data
-Access cached CCASS data from project directories or user memories.
+### 3. 历史数据
+从项目目录或用户记忆中访问缓存的 CCASS 数据。
 
-## Analysis Process
+## 分析流程
 
-### Step 1: Fetch CCASS Data
+### 步骤 1：获取 CCASS 数据
 
-**For a single date:**
+**单一日期查询：**
 ```
-# If MCP available (check with /mcp list command)
-# Use the CCASS MCP tool directly
+# 如果 MCP 可用（使用 /mcp list 命令检查）
+# 直接使用 CCASS MCP 工具
 
-# If MCP not available, inform user:
+# 如果 MCP 不可用，通知用户：
 "CCASS MCP服务器未启用。请手动访问 HKEX 网站或提供 CCASS 数据文件。"
 ```
 
-**For date range tracking:**
-Create a tracking task using subagent for context isolation:
+**日期范围追踪：**
+使用子代理创建追踪任务以隔离上下文：
 ```
 task(
-    description="Track CCASS holdings for stock 00700 from 2025-10-01 to 2025-11-20. Extract top 10 participants and their holding changes. Return a summary table.",
+    description="追踪股票 00700 从 2025-10-01 到 2025-11-20 的 CCASS 持仓。提取前10大参与者及其持仓变化。返回汇总表格。",
     subagent_type="general-purpose"
 )
 ```
-> Note: Subagent has same tools as main agent. Use for isolating large analysis tasks.
+> 注意：子代理拥有与主代理相同的工具。用于隔离大型分析任务。
 
-### Step 2: Identify Key Participants
+### 步骤 2：识别关键参与者
 
-**Top Holders Analysis:**
-1. List top 10 participants by shareholding percentage
-2. Identify well-known brokers:
-   - HSBC
-   - Goldman Sachs
-   - Morgan Stanley
-   - UBS
-   - JP Morgan
-   - China brokers (CICC, Guotai Junan, etc.)
+**大户分析：**
+1. 按持股比例列出前10大参与者
+2. 识别知名券商：
+   - 汇丰
+   - 高盛
+   - 摩根士丹利
+   - 瑞银
+   - 摩根大通
+   - 中资券商（中金、国泰君安等）
 
-**Categorize by type:**
-- Retail brokers (e.g., Futu, Tiger)
-- Investment banks (Goldman, Morgan Stanley)
-- Chinese brokers (CICC, Haitong)
-- Custodian banks (HSBC, Standard Chartered)
+**按类型分类：**
+- 零售券商（例如，富途、老虎）
+- 投资银行（高盛、摩根士丹利）
+- 中资券商（中金、海通）
+- 托管银行（汇丰、渣打）
 
-### Step 3: Calculate Changes
+### 步骤 3：计算变化
 
-**Key Metrics:**
-- **Absolute change**: Current holdings - Previous holdings
-- **Percentage change**: (Change / Previous) × 100%
-- **Share of turnover**: Change / Daily volume
-- **Net flow**: Sum of all positive changes - Sum of all negative changes
+**关键指标：**
+- **绝对变化**：当前持仓 - 之前持仓
+- **百分比变化**：（变化 / 之前）× 100%
+- **成交量占比**：变化 / 日成交量
+- **净流入**：所有正变化之和 - 所有负变化之和
 
-**Thresholds for significance:**
-- Large change: >5% of holdings
-- Very large change: >10% of holdings
-- Massive change: >20% of holdings
+**重要性阈值：**
+- 较大变化：>5% 的持仓
+- 很大变化：>10% 的持仓
+- 巨大变化：>20% 的持仓
 
-### Step 4: Identify Patterns
+### 步骤 4：识别模式
 
-**Accumulation signals:**
-- Multiple participants increasing holdings
-- Investment banks buying
-- Holdings increasing over consecutive dates
+**累积信号：**
+- 多个参与者增加持仓
+- 投资银行买入
+- 持仓连续多日增加
 
-**Distribution signals:**
-- Top holders reducing positions
-- Retail brokers showing outflows
-- Holdings decreasing over consecutive dates
+**派发信号：**
+- 头部持有者减仓
+- 零售券商显示流出
+- 持仓连续多日减少
 
-**Rotation signals:**
-- Some participants buying, others selling
-- Net flow near zero
-- Broker type shifting (e.g., retail → institutional)
+**轮换信号：**
+- 部分参与者买入，其他参与者卖出
+- 净流入接近零
+- 券商类型转换（例如，零售 → 机构）
 
-### Step 5: Generate Report
+### 步骤 5：生成报告
 
-Create a structured CCASS analysis report:
+创建结构化的 CCASS 分析报告：
 
 ```markdown
-# CCASS 持仓分析 - [Stock Code] ([Date Range])
+# CCASS 持仓分析 - [股票代码] ([日期范围])
 
 ## 概况
 - **股票代码**: [code]
-- **分析期间**: [start date] 至 [end date]
-- **当前总持仓**: [total shares] ([% of issued shares])
+- **分析期间**: [开始日期] 至 [结束日期]
+- **当前总持仓**: [总股数] ([占发行股本 %])
 
-## Top 10 参与者
+## 前10大参与者
 
 | 排名 | 参与者 | 持股数量 | 占比 | 变化 | 变化% |
 |------|--------|---------|------|------|-------|
-| 1 | [Name] | [shares] | [%] | +/- [change] | +/- [%] |
+| 1 | [名称] | [股数] | [%] | +/- [变化] | +/- [%] |
 | ... | ... | ... | ... | ... | ... |
 
 ## 关键变化
 
 ### 大幅增持 (>5%)
-- **[Participant Name]**: +[X]% ([reason/analysis])
+- **[参与者名称]**: +[X]% ([原因/分析])
 
 ### 大幅减持 (>5%)
-- **[Participant Name]**: -[X]% ([reason/analysis])
+- **[参与者名称]**: -[X]% ([原因/分析])
 
 ### 新进入者
-- **[Participant Name]**: 首次出现，持股 [X]%
+- **[参与者名称]**: 首次出现，持股 [X]%
 
 ### 退出者
-- **[Participant Name]**: 已清仓
+- **[参与者名称]**: 已清仓
 
 ## 资金流向
 - **净流入**: +[X] 股 (+[Y]%)
-- **买方主力**: [Participant types]
-- **卖方主力**: [Participant types]
+- **买方主力**: [参与者类型]
+- **卖方主力**: [参与者类型]
 
 ## 市场影响分析
-- **持仓集中度**: [Top 10 占比]
-- **流通性**: [分析]
+- **持仓集中度**: [前10大占比]
+- **流动性**: [分析]
 - **机构vs散户**: [占比分析]
 
 ## 风险提示
-- [Any unusual patterns or risks]
+- [任何异常模式或风险]
 ```
 
-### Step 6: Save to File
+### 步骤 6：保存到文件
 
 ```
-# Use /md/ directory (project standard)
+# 使用 /md/ 目录（项目标准）
 write_file(
     path="/md/[stock_code]-CCASS分析-[date_range].md",
-    content="[Report content]"
+    content="[报告内容]"
 )
 ```
 
-## Best Practices
+## 最佳实践
 
-**Do's:**
-- ✅ Track at least 5-10 consecutive dates for trend analysis
-- ✅ Focus on top 20 participants (they hold 80%+ of CCASS shares)
-- ✅ Cross-reference with price movements
-- ✅ Note any corporate actions during the period
-- ✅ Identify broker names (not just IDs)
+**建议做的事：**
+- ✅ 追踪至少 5-10 个连续日期以进行趋势分析
+- ✅ 关注前 20 大参与者（他们持有 80% 以上的 CCASS 股份）
+- ✅ 与股价走势交叉对比
+- ✅ 注意期间内的任何公司行动
+- ✅ 识别券商名称（不仅仅是编号）
 
-**Don'ts:**
-- ❌ Don't ignore small but consistent changes
-- ❌ Don't forget to account for corporate actions (splits, dividends)
-- ❌ Don't assume broker code = beneficial owner
-- ❌ Don't ignore weekends/holidays (no data)
+**避免做的事：**
+- ❌ 不要忽视小但持续的变化
+- ❌ 不要忘记考虑公司行动（拆股、股息）
+- ❌ 不要假设券商代码 = 实际受益人
+- ❌ 不要忽视周末/节假日（无数据）
 
-## Important Notes
+## 重要说明
 
-### CCASS Limitations
-1. **Not beneficial ownership**: CCASS shows broker holdings, not end investors
-2. **Retail underrepresented**: Many retail investors hold via brokers not in CCASS
-3. **Lag time**: Data is T+1 (published next day)
-4. **Incomplete picture**: Only ~70-80% of shares tracked in CCASS
+### CCASS 局限性
+1. **非实际受益所有权**：CCASS 显示的是券商持仓，而非最终投资者
+2. **散户代表不足**：许多散户通过不在 CCASS 中的券商持仓
+3. **时间滞后**：数据为 T+1（次日发布）
+4. **不完整图景**：仅约 70-80% 的股份在 CCASS 中追踪
 
-### Interpretation Guidelines
-- **Broker accumulation**: May indicate institutional interest OR client orders
-- **Custodian changes**: Often administrative, not trading
-- **Retail broker flows**: Better indicator of retail sentiment
-- **Investment bank positions**: May be proprietary or client-related
+### 解读指南
+- **券商累积**：可能表示机构兴趣或客户订单
+- **托管变化**：通常是行政性的，而非交易
+- **零售券商流向**：更好地反映散户情绪
+- **投行持仓**：可能是自营或客户相关
 
-## Example Workflow
+## 示例工作流程
 
-**User Request**: "追踪00700最近一个月的CCASS变化"
+**用户请求**："追踪00700最近一个月的CCASS变化"
 
-**Execution Steps:**
-1. Check if CCASS MCP is available: `/mcp list`
-2. If yes, use MCP tool to fetch data
-3. If no, inform user and suggest alternatives
-4. Analyze top 10 holders
-5. Calculate changes
-6. Identify patterns (accumulation/distribution)
-7. Write report: `write_file("/md/00700-CCASS分析.md", [content])`
-8. Present summary to user
+**执行步骤：**
+1. 检查 CCASS MCP 是否可用：`/mcp list`
+2. 如果可用，使用 MCP 工具获取数据
+3. 如果不可用，通知用户并建议替代方案
+4. 分析前10大持有者
+5. 计算变化
+6. 识别模式（累积/派发）
+7. 写入报告：`write_file("/md/00700-CCASS分析.md", [内容])`
+8. 向用户展示摘要
 
-## Supporting Scripts
+## 辅助脚本
 
-Optional helper scripts (create as needed):
-- `fetch_ccass.py`: Fetch CCASS data from HKEX website
-- `parse_participants.py`: Parse participant names and categorize
-- `calculate_flows.py`: Calculate net flows and changes
-- `generate_charts.py`: Generate holding trend charts (requires matplotlib)
+可选辅助脚本（按需创建）：
+- `fetch_ccass.py`：从港交所网站获取 CCASS 数据
+- `parse_participants.py`：解析参与者名称并分类
+- `calculate_flows.py`：计算净流入和变化
+- `generate_charts.py`：生成持仓趋势图表（需要 matplotlib）
 
-Place scripts in: `~/.hkex-agent/[agent]/skills/ccass-tracking/`
-
+将脚本放置在：`~/.hkex-agent/[agent]/skills/ccass-tracking/`
