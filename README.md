@@ -3,11 +3,16 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Upstream Sync](https://img.shields.io/badge/upstream-synced%202025--12--04-brightgreen.svg)](https://github.com/langchain-ai/deepagents)
+[![Upstream Sync](https://img.shields.io/badge/upstream-synced%202025--12--09-brightgreen.svg)](https://github.com/langchain-ai/deepagents)
 
 基于 Deep Agents 框架开发的港股交易数据分析智能代理系统，专门用于处理港交所公告、PDF 文档解析和智能摘要生成。
 
-**最近更新** (2025-12-08):
+**最近更新** (2025-12-09):
+- 🚀 **异步 Backend 支持**：同步上游 deepagents 0.3.0，所有存储后端新增 `a` 前缀异步方法
+- 📦 **批量文件操作**：新增 `upload_files` / `download_files` API，支持高效批量上传下载
+- 🔧 **新增数据类**：`FileDownloadResponse`、`FileUploadResponse`、`ExecuteResponse`
+
+**历史更新** (2025-12-08):
 - ⭐ **CCASS分析增强**：财技分析报告强制包含CCASS持仓分析，报告模板详细化
 - 🎯 **Skills优化**：重构`hkex-financial-engineering`技能，消除冗余，建立引用关系（-55%代码）
 - 📋 **提示词优化**：明确财技分析5大必填部分（基本信息、操作详情、CCASS、风险评估、投资建议）
@@ -341,6 +346,8 @@ Agent支持两个层级的长期记忆，自动管理个性化偏好和项目特
 **🧠 Deep Agents 框架**
 - **规划工具**：内置 `write_todos` 工具，任务分解与进度跟踪
 - **文件系统**：`ls`、`read_file`、`write_file`、`edit_file`、`glob`、`grep`
+- **异步支持**：所有存储后端支持 `a` 前缀异步方法（`aread`、`awrite`、`aedit` 等）
+- **批量操作**：`upload_files` / `download_files` 支持高效批量文件操作
 - **子代理生成**：内置 `task` 工具，上下文隔离与专门化处理
 - **长期记忆**：基于 LangGraph Store 的跨线程持久化
 
